@@ -14,7 +14,7 @@ class GTN:
         Omega=np.array([[0,1],[-1,0]])
         return np.kron(np.eye(self.L),Omega)
 
-    def measure(self,n,ix):
+    def measure(self,n_list,ix):
         ''' Majorana site index for ix'''
         if not hasattr(self,'n_history'):
             self.n_history=[]
@@ -22,25 +22,25 @@ class GTN:
             self.i_history=[]
 
         m=self.C_m_history[-1].copy()
-        for i_ind,i in enumerate(ix):
-            m[[i,-(len(ix)-i_ind)]]=m[[-(len(ix)-i_ind),i]]
-            m[:,[i,-(len(ix)-i_ind)]]=m[:,[-(len(ix)-i_ind),i]]
-        proj=self.kraus(n)
-
-        Psi=_contraction(m,proj,ix)
+        
+        # swap(m,ix)
+        proj=[self.kraus(n) for n in n_list]
+        ix_bar=np.array([i for i in np.arange(self.L*2) if i not in ix])
+        Psi=_contraction(m,proj,ix,ix_bar)
         assert np.abs(np.trace(Psi))<1e-5, "Not trace zero {:e}".format(np.trace(Psi))
 
-        for i_ind,i in enumerate(ix):
-            Psi[[i,-(len(ix)-i_ind)]]=Psi[[-(len(ix)-i_ind),i]]
-            Psi[:,[i,-(len(ix)-i_ind)]]=Psi[:,[-(len(ix)-i_ind),i]]
+        # for i_ind,i in enumerate(ix):
+        #     Psi[[i,-(len(ix)-i_ind)]]=Psi[[-(len(ix)-i_ind),i]]
+        #     Psi[:,[i,-(len(ix)-i_ind)]]=Psi[:,[-(len(ix)-i_ind),i]]
+        # swap(Psi,ix)
         
         if self.history:
             self.C_m_history.append(Psi)
-            self.n_history.append(n)
+            self.n_history.append(n_list)
             self.i_history.append(ix)
         else:
             self.C_m_history=[Psi]
-            self.n_history=[n]
+            self.n_history=[n_list]
             self.i_history=[ix]
 
 
@@ -85,19 +85,9 @@ class GTN:
             self.covariance_matrix_f()
         if Gamma is None:
             Gamma=self.C_m_history[-1]
-        subregion=self.linearize_index(subregion,2)
+        subregion=linearize_index(subregion,2)
         return Gamma[np.ix_(subregion,subregion)]
 
-
-    def linearize_index(self,subregion,n,k=2,proj=False):
-        try:
-            subregion=np.array(subregion)
-        except:
-            raise ValueError("The subregion is ill-defined"+subregion)
-        if proj:
-            return sorted(np.concatenate([n*subregion+i for i in range(0,n,k)]))
-        else:
-            return sorted(np.concatenate([n*subregion+i for i in range(n)]))
 
     def measure_all(self):
         proj_range=np.arange(self.L)*2 if even else np.arange(self.L)*2+1
@@ -111,7 +101,17 @@ class GTN:
         else:
             n_list=get_random(a1,a2,b1,b2,proj_range.shape[0],n1_z=n1_z,rng=self.rng)
         for i,n in zip(proj_range,n_list):
-            self.measure(n, np.array([i,(i+1)%(2*self.L)]))
+            self.measure([n], np.array([i,(i+1)%(2*self.L)]))
+
+    def measure_all_sync(self,a1,a2,b1,b2,even=True,n1_z=True,Born=False):
+        proj_range=np.arange(self.L)*2 if even else np.arange(self.L)*2+1
+        if Born:
+            Gamma_list=self.C_m_history[-1][proj_range,(proj_range+1)%(2*self.L)]
+            n_list=get_Born(a1,a2,b1,b2,Gamma_list,n1_z=n1_z,rng=self.rng)
+        else:
+            n_list=get_random(a1,a2,b1,b2,proj_range.shape[0],n1_z=n1_z,rng=self.rng)
+        
+        self.measure(n_list,np.c_[proj_range,(proj_range+1)%(2*self.L)].flatten())
 
     def mutual_information_cross_ratio(self):
         x=np.array([0,self.L//4,self.L//2,self.L//4*3])
@@ -193,19 +193,29 @@ def cross_ratio(x,L):
         xx=lambda i,j: np.abs(x[i]-x[j])
     eta=(xx(0,1)*xx(2,3))/(xx(0,2)*xx(1,3))
     return eta
+
 # @jit(float64[:,:](float64[:,:],float64[:,:],int64[:]),nopython=True,fastmath=True)
-def _contraction(m,proj,ix):
-    
-    Gamma_LL=m[:-len(ix),:-len(ix)]
-    Gamma_LR=m[:-len(ix),-len(ix):]
-    Gamma_RR=m[-len(ix):,-len(ix):]
+def _contraction(m,proj_list,ix,ix_bar):
+    ix,ix_bar=list(ix),list(ix_bar)
+    # Gamma_LL=m[:-len(ix),:-len(ix)]
+    # Gamma_LR=m[:-len(ix),-len(ix):]
+    # Gamma_RR=m[-len(ix):,-len(ix):]
+    Gamma_LL=m[np.ix_(ix_bar,ix_bar)]
+    Gamma_LR=m[np.ix_(ix_bar,ix)]
+    Gamma_RR=m[np.ix_(ix,ix)]
+
+    proj=np.zeros((4*len(proj_list),4*len(proj_list)))
+    # change index from (in_1, in_2, out_1, out_2) (in_3, in_4, out_3, out_4)
+    # to (in_1 , in_2, in_3, in_4, out_1, out_2, out_3, out_4)
+    for i,p in enumerate(proj_list):
+        proj[np.ix_([2*i,2*i+1,2*i+2*len(proj_list),2*i+2*len(proj_list)+1],[2*i,2*i+1,2*i+2*len(proj_list),2*i+2*len(proj_list)+1])]=p
     
     Upsilon_LL=proj[:len(ix),:len(ix)]
     Upsilon_RR=proj[len(ix):,len(ix):]
     Upsilon_RL=proj[len(ix):,:len(ix)]
-    zero=np.zeros((m.shape[0]-len(ix),len(ix)))
-    zero0=np.zeros((len(ix),len(ix)))
 
+    # zero=np.zeros((m.shape[0]-len(ix),len(ix)))
+    # zero0=np.zeros((len(ix),len(ix)))f
     # mat1=np.block([[Gamma_LL,zero],[zero.T,Upsilon_RR]])
     # mat2=np.block([[Gamma_LR,zero],[zero0,Upsilon_RL]])
     # mat3=np.block([[Gamma_RR,np.eye(len(ix))],[-np.eye(len(ix)),Upsilon_LL]])
@@ -221,11 +231,35 @@ def _contraction(m,proj,ix):
     mat3[len(ix):,:len(ix)]=-np.eye(len(ix))
 
     if np.count_nonzero(mat2):
-        # Psi=mat1+mat2@(nla.solve(mat3,mat2.T))
-        Psi=mat1+mat2@nla.inv(mat3)@mat2.T
+        Psi=mat1+mat2@(nla.solve(mat3,mat2.T))
+        # Psi=mat1+mat2@nla.inv(mat3)@mat2.T
         # Psi=mat1+mat2@(la.lstsq(mat3,mat2.T)[0])
     else:
+        print('mat2 is singular')
         Psi=mat1
     
+    Psi_mat=np.zeros_like(Psi)
+    Psi_mat[np.ix_(ix_bar,ix_bar)]=Psi[:len(ix_bar),:len(ix_bar)]
+    Psi_mat[np.ix_(ix,ix)]=Psi[-len(ix):,-len(ix):]
+    Psi_mat[np.ix_(ix_bar,ix)]=Psi[:len(ix_bar),-len(ix):]
+    Psi_mat[np.ix_(ix,ix_bar)]=Psi[-len(ix):,:len(ix_bar)]
+    Psi=Psi_mat
+
     Psi=(Psi-Psi.T)/2
     return Psi
+
+def swap(mat,ix):
+    '''Swap ix with last ix on both col and row'''
+    for i_ind,i in enumerate(ix):
+        mat[[i,-(len(ix)-i_ind)]]=mat[[-(len(ix)-i_ind),i]]
+        mat[:,[i,-(len(ix)-i_ind)]]=mat[:,[-(len(ix)-i_ind),i]]
+
+def linearize_index(subregion,n,k=2,proj=False):
+    try:
+        subregion=np.array(subregion)
+    except:
+        raise ValueError("The subregion is ill-defined"+subregion)
+    if proj:
+        return sorted(np.concatenate([n*subregion+i for i in range(0,n,k)]))
+    else:
+        return sorted(np.concatenate([n*subregion+i for i in range(n)]))

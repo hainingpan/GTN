@@ -7,10 +7,10 @@ from mpi4py.futures import MPIPoolExecutor
 
 def measure(inputs):
     a1,a2,b1,b2,es,L,t,Born=inputs
-    gtn=GTN(L=L,seed=es)
+    gtn=GTN(L=L,seed=es,history=False)
     for i in range(t):
-        gtn.measure_all(b2=b2,a2=a2, a1=a1,b1=b1,Born=Born,even=True,n1_z=True)
-        gtn.measure_all(b2=b2,a2=a2, a1=a1,b1=b1,Born=Born,even=False,n1_z=False)
+        gtn.measure_all_sync(b2=b2,a2=a2, a1=a1,b1=b1,Born=Born,even=True,n1_z=True)
+        gtn.measure_all_sync(b2=b2,a2=a2, a1=a1,b1=b1,Born=Born,even=False,n1_z=False)
     return gtn.mutual_information_cross_ratio()
 
 def wrapper(inputs):

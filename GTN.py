@@ -1,18 +1,23 @@
 import numpy as np
 import numpy.linalg as nla
+import scipy.linalg as la
 from copy import copy
 
 class GTN:
-    def __init__(self,L,history=True,seed=None):
+    def __init__(self,L,history=True,seed=None,op=False):
         self.L=L
-        self.C_m=self.correlation_matrix()
+        self.op=op
+        self.C_m=self.correlation_matrix(op=op)
         self.C_m_history=[self.C_m]
         self.history=history
         self.rng=np.random.default_rng(seed)
     
-    def correlation_matrix(self):
-        Omega=np.array([[0,1],[-1,0]])
-        return np.kron(np.eye(self.L),Omega)
+    def correlation_matrix(self,op):
+        if op:
+            return np.zeros((0,0))
+        else:
+            Omega=np.array([[0,1.],[-1.,0]])
+            return np.kron(np.eye(self.L),Omega)
 
     def measure(self,n_list,ix):
         ''' Majorana site index for ix'''
@@ -22,18 +27,10 @@ class GTN:
             self.i_history=[]
 
         m=self.C_m_history[-1].copy()
-        
-        # swap(m,ix)
         proj=[self.kraus(n) for n in n_list]
-        ix_bar=np.array([i for i in np.arange(self.L*2) if i not in ix])
+        ix_bar=np.array([i for i in np.arange(self.L*2) if i not in ix]) if not self.op else np.array([i for i in np.arange(self.L*4) if i not in ix])
         Psi=_contraction(m,proj,ix,ix_bar)
         assert np.abs(np.trace(Psi))<1e-5, "Not trace zero {:e}".format(np.trace(Psi))
-
-        # for i_ind,i in enumerate(ix):
-        #     Psi[[i,-(len(ix)-i_ind)]]=Psi[[-(len(ix)-i_ind),i]]
-        #     Psi[:,[i,-(len(ix)-i_ind)]]=Psi[:,[-(len(ix)-i_ind),i]]
-        # swap(Psi,ix)
-        
         if self.history:
             self.C_m_history.append(Psi)
             self.n_history.append(n_list)
@@ -88,33 +85,33 @@ class GTN:
         subregion=linearize_index(subregion,2)
         return Gamma[np.ix_(subregion,subregion)]
 
-
-    def measure_all(self):
-        proj_range=np.arange(self.L)*2 if even else np.arange(self.L)*2+1
-
-
-    def measure_all(self,a1,a2,b1,b2,even=True,n1_z=True,Born=False):
+    def measure_all(self,a1,a2,b1,b2,even=True,theta_list=0,phi_list=0,Born=False):
         proj_range=np.arange(self.L)*2 if even else np.arange(self.L)*2+1
         if Born:
             Gamma_list=self.C_m_history[-1][proj_range,(proj_range+1)%(2*self.L)]
-            n_list=get_Born(a1,a2,b1,b2,Gamma_list,n1_z=n1_z,rng=self.rng)
+            n_list=get_Born(a1,a2,b1,b2,Gamma_list,theta_list=theta_list,phi_list=phi_list,rng=self.rng)
         else:
-            n_list=get_random(a1,a2,b1,b2,proj_range.shape[0],n1_z=n1_z,rng=self.rng)
+            n_list=get_random(a1,a2,b1,b2,proj_range.shape[0],theta_list=theta_list,phi_list=phi_list,rng=self.rng)
         for i,n in zip(proj_range,n_list):
             self.measure([n], np.array([i,(i+1)%(2*self.L)]))
 
-    def measure_all_sync(self,a1,a2,b1,b2,even=True,n1_z=True,Born=False):
+    def measure_all_sync(self,a1,a2,b1,b2,even=True,theta_list=0,phi_list=0,Born=False):
         proj_range=np.arange(self.L)*2 if even else np.arange(self.L)*2+1
+        C_m=self.C_m_history[-1]
+        proj_range_1=proj_range if not self.op else proj_range+2* self.L
+        proj_range_2=(proj_range+1)%(2*self.L) if not self.op else (proj_range+1)%(2*self.L) + 2*self.L
         if Born:
-            Gamma_list=self.C_m_history[-1][proj_range,(proj_range+1)%(2*self.L)]
-            n_list=get_Born(a1,a2,b1,b2,Gamma_list,n1_z=n1_z,rng=self.rng)
+            for i,j in zip(proj_range_1,proj_range_2):
+                Gamma_list=C_m[[i],[j]] if self.C_m.size>0 else np.array([1]*self.L)
+                n_list=get_Born(a1,a2,b1,b2,Gamma_list,theta_list=theta_list,phi_list=phi_list,rng=self.rng)
+                self.measure(n_list,[i,j])
         else:
-            n_list=get_random(a1,a2,b1,b2,proj_range.shape[0],n1_z=n1_z,rng=self.rng)
-        
-        self.measure(n_list,np.c_[proj_range,(proj_range+1)%(2*self.L)].flatten())
+            n_list=get_random(a1,a2,b1,b2,proj_range.shape[0],theta_list=theta_list,phi_list=phi_list,rng=self.rng)
+            self.measure(n_list,np.c_[proj_range_1,proj_range_2].flatten())
 
     def mutual_information_cross_ratio(self):
         x=np.array([0,self.L//4,self.L//2,self.L//4*3])
+        # x=np.array([0,self.L//8,self.L//2,self.L//8*5])
         MI=[]
         subA=np.arange(x[0],x[1])
         subB=np.arange(x[2],x[3])
@@ -122,7 +119,14 @@ class GTN:
             MI.append(self.mutual_information_m((subA+shift)%self.L, (subB+shift)%self.L))
         return np.mean(MI)
 
-def get_random(a1,a2,b1,b2,num,n1_z=True,rng=None):
+    def entanglement_contour(self,subregion):
+        c_A=self.c_subregion_m(subregion)
+        C_f=(np.eye(c_A.shape[0])+1j*c_A)/2
+        f,_=la.funm(C_f,lambda x: -x*np.log(x),disp=False)
+        return np.diag(f).real.reshape((-1,2)).sum(axis=1).real
+
+
+def get_random(a1,a2,b1,b2,num,rng=None,theta_list=0,phi_list=0):
     '''
         -b1<-a1<a2<b2 
         
@@ -142,7 +146,13 @@ def get_random(a1,a2,b1,b2,num,n1_z=True,rng=None):
     # n1=np.where(n1<a2,n1,n1+(a1-a2))
 
     n2,n3=get_inplane(n1, num,rng=rng)
-    return np.c_[n1,n2,n3] if n1_z else np.c_[n3,n1,n2]
+    n=np.c_[n1,n2,n3]
+    return rotate(n,theta_list,phi_list)
+
+def rotate(n,theta,phi):
+    n=np.c_[np.cos(theta)*n[:,0]-np.sin(theta)*n[:,1],np.sin(theta)*n[:,0]+np.cos(theta)*n[:,1],n[:,2]]
+    n=np.c_[np.cos(phi)*n[:,0]-np.sin(phi)*n[:,2],n[:,1],np.sin(phi)*n[:,0]+np.cos(phi)*n[:,2]]
+    return n
 
 
 def get_inplane(n1,num,rng=None):
@@ -152,7 +162,7 @@ def get_inplane(n1,num,rng=None):
     n2,n3=r*np.cos(phi),r*np.sin(phi)
     return n2,n3
 
-def get_Born(a1,a2,b1,b2,Gamma,n1_z=True,rng=None):
+def get_Born(a1,a2,b1,b2,Gamma,rng=None,theta_list=0,phi_list=0):
     '''
         -b1<-a1<a2<b2 
         Gamma: list for all parities
@@ -172,7 +182,8 @@ def get_Born(a1,a2,b1,b2,Gamma,n1_z=True,rng=None):
     n1=np.where(u<bndy,solve(coef1,u),solve(coef2,u))
 
     n2,n3=get_inplane(n1, num,rng=rng)
-    return np.c_[n1,n2,n3] if n1_z else np.c_[n3,n1,n2]
+    n=np.c_[n1,n2,n3]
+    return rotate(n,theta_list,phi_list)
 
 def solve(coef,u):
     a,b,c=coef
@@ -180,7 +191,6 @@ def solve(coef,u):
     with np.errstate(invalid='ignore'):
         n1=np.where(a==0,-c/b,(-b+np.sqrt(b**2-4*a*c))/(2*a) )
     return n1
-    # return -c/b if a==0 else (-b+np.sqrt(b**2-4*a*c))/(2*a) 
 
 
 def rescale(x,y0,y1,x0=0,x1=1):
@@ -194,31 +204,29 @@ def cross_ratio(x,L):
     eta=(xx(0,1)*xx(2,3))/(xx(0,2)*xx(1,3))
     return eta
 
+def cord(x,L):
+    return L/np.pi*np.sin(np.pi/L*np.abs(x))
+
 # @jit(float64[:,:](float64[:,:],float64[:,:],int64[:]),nopython=True,fastmath=True)
 def _contraction(m,proj_list,ix,ix_bar):
     ix,ix_bar=list(ix),list(ix_bar)
-    # Gamma_LL=m[:-len(ix),:-len(ix)]
-    # Gamma_LR=m[:-len(ix),-len(ix):]
-    # Gamma_RR=m[-len(ix):,-len(ix):]
-    Gamma_LL=m[np.ix_(ix_bar,ix_bar)]
-    Gamma_LR=m[np.ix_(ix_bar,ix)]
-    Gamma_RR=m[np.ix_(ix,ix)]
 
     proj=np.zeros((4*len(proj_list),4*len(proj_list)))
     # change index from (in_1, in_2, out_1, out_2) (in_3, in_4, out_3, out_4)
     # to (in_1 , in_2, in_3, in_4, out_1, out_2, out_3, out_4)
     for i,p in enumerate(proj_list):
         proj[np.ix_([2*i,2*i+1,2*i+2*len(proj_list),2*i+2*len(proj_list)+1],[2*i,2*i+1,2*i+2*len(proj_list),2*i+2*len(proj_list)+1])]=p
-    
+
+    if m.size==0:
+        return proj
+    else:
+        Gamma_LL=m[np.ix_(ix_bar,ix_bar)]
+        Gamma_LR=m[np.ix_(ix_bar,ix)]
+        Gamma_RR=m[np.ix_(ix,ix)]
+
     Upsilon_LL=proj[:len(ix),:len(ix)]
     Upsilon_RR=proj[len(ix):,len(ix):]
     Upsilon_RL=proj[len(ix):,:len(ix)]
-
-    # zero=np.zeros((m.shape[0]-len(ix),len(ix)))
-    # zero0=np.zeros((len(ix),len(ix)))f
-    # mat1=np.block([[Gamma_LL,zero],[zero.T,Upsilon_RR]])
-    # mat2=np.block([[Gamma_LR,zero],[zero0,Upsilon_RL]])
-    # mat3=np.block([[Gamma_RR,np.eye(len(ix))],[-np.eye(len(ix)),Upsilon_LL]])
 
     mat1,mat2,mat3=np.zeros(m.shape),np.zeros((m.shape[0],2*len(ix))),np.zeros((2*len(ix),2*len(ix)))
     mat1[:-len(ix),:-len(ix)]=Gamma_LL
@@ -263,3 +271,9 @@ def linearize_index(subregion,n,k=2,proj=False):
         return sorted(np.concatenate([n*subregion+i for i in range(0,n,k)]))
     else:
         return sorted(np.concatenate([n*subregion+i for i in range(n)]))
+    
+def interpolate(x1,x2,l0,h0,L,k=1):
+    x=np.arange(L)
+    h=h0/2
+    l=l0-h0/2
+    return (h-l)/2*(np.tanh((x-x1)*k)+1)+l-(h-l)/2*(np.tanh((x-x2)*k)+1)+h

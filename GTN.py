@@ -4,27 +4,32 @@ import scipy.linalg as la
 from copy import copy
 
 class GTN:
-    def __init__(self,L,history=True,seed=None,op=False):
+    def __init__(self,L,history=True,seed=None,op=False,random_init=False):
         self.L=L
         self.op=op
+        self.random_init=random_init
+        self.rng=np.random.default_rng(seed)
         self.C_m=self.correlation_matrix(op=op)
         self.C_m_history=[self.C_m]
         self.history=history
-        self.rng=np.random.default_rng(seed)
+        self.n_history=[]
+        self.i_history=[]
+        self.MI_history=[]
+
     
     def correlation_matrix(self,op):
         if op:
             return np.zeros((0,0))
         else:
             Omega=np.array([[0,1.],[-1.,0]])
-            return np.kron(np.eye(self.L),Omega)
+            Omega_diag=np.kron(np.eye(self.L),Omega)
+            O=get_O(self.rng,2*self.L) if self.random_init else np.eye(2*self.L)
+            Gamma=O@Omega_diag@O.T
+            return (Gamma-Gamma.T)/2
+            
 
     def measure(self,n_list,ix):
         ''' Majorana site index for ix'''
-        if not hasattr(self,'n_history'):
-            self.n_history=[]
-        if not hasattr(self,'i_history'):
-            self.i_history=[]
 
         m=self.C_m_history[-1].copy()
         proj=[self.kraus(n) for n in n_list]
@@ -35,10 +40,12 @@ class GTN:
             self.C_m_history.append(Psi)
             self.n_history.append(n_list)
             self.i_history.append(ix)
+            # self.MI_history.append(self.mutual_information_cross_ratio())
         else:
             self.C_m_history=[Psi]
             self.n_history=[n_list]
             self.i_history=[ix]
+            # self.MI_history=[self.mutual_information_cross_ratio()]
 
 
     def projection(self,s):
@@ -55,35 +62,19 @@ class GTN:
         return blkmat
 
     def kraus(self,n):
-        return -np.array([[0,n[0],n[1],n[2]],
-                        [-n[0],0,-n[2],n[1]],
-                        [-n[1],n[2],0,-n[0]],
-                        [-n[2],-n[1],n[0],0]])
+        # return np.array([[0,n[0],n[1],n[2]],
+        #                 [-n[0],0,-n[2],n[1]],
+        #                 [-n[1],n[2],0,-n[0]],
+        #                 [-n[2],-n[1],n[0],0]])
+        return -np.array([[0,n[0],-n[1],n[2]],
+                        [-n[0],0,-n[2],-n[1]],
+                        [n[1],n[2],0,-n[0]],
+                        [-n[2],n[1],n[0],0]])
+        # return -np.array([[0,n[0],n[1],n[2]],
+        #                 [-n[0],0,-n[2],n[1]],
+        #                 [-n[1],n[2],0,-n[0]],
+        #                 [-n[2],-n[1],n[0],0]])
     
-    def mutual_information_m(self,subregion_A,subregion_B):
-        ''' Composite fermion site index'''
-        assert np.intersect1d(subregion_A,subregion_B).size==0 , "Subregion A and B overlap"
-        s_A=self.von_Neumann_entropy_m(subregion_A)
-        s_B=self.von_Neumann_entropy_m(subregion_B)
-        subregion_AB=np.concatenate([subregion_A,subregion_B])
-        s_AB=self.von_Neumann_entropy_m(subregion_AB)
-        return s_A+s_B-s_AB
-
-    def von_Neumann_entropy_m(self,subregion):
-        c_A=self.c_subregion_m(subregion)
-        val=nla.eigvalsh(1j*c_A)
-        self.val_sh=val
-        val=np.sort(val)
-        val=(1-val)/2+1e-18j   #\lambda=(1-\xi)/2
-        return np.real(-np.sum(val*np.log(val))-np.sum((1-val)*np.log(1-val)))/2
-
-    def c_subregion_m(self,subregion,Gamma=None):
-        if not hasattr(self,'C_m'):
-            self.covariance_matrix_f()
-        if Gamma is None:
-            Gamma=self.C_m_history[-1]
-        subregion=linearize_index(subregion,2)
-        return Gamma[np.ix_(subregion,subregion)]
 
     def measure_all(self,a1,a2,b1,b2,even=True,theta_list=0,phi_list=0,Born=False):
         proj_range=np.arange(self.L)*2 if even else np.arange(self.L)*2+1
@@ -100,14 +91,36 @@ class GTN:
         C_m=self.C_m_history[-1]
         proj_range_1=proj_range if not self.op else proj_range+2* self.L
         proj_range_2=(proj_range+1)%(2*self.L) if not self.op else (proj_range+1)%(2*self.L) + 2*self.L
+        if isinstance(theta_list, int) or isinstance(theta_list, float):
+            theta_list=[theta_list]*len(proj_range_1)
+        if isinstance(phi_list, int) or isinstance(phi_list, float):
+            phi_list=[phi_list]*len(proj_range_1)
         if Born:
-            for i,j in zip(proj_range_1,proj_range_2):
-                Gamma_list=C_m[[i],[j]] if self.C_m.size>0 else np.array([1]*self.L)
+            if C_m.size==0:
+                Gamma_list=np.array([1]*self.L)
                 n_list=get_Born(a1,a2,b1,b2,Gamma_list,theta_list=theta_list,phi_list=phi_list,rng=self.rng)
-                self.measure(n_list,[i,j])
+                self.measure(n_list,np.c_[proj_range_1,proj_range_2].flatten())
+            else:
+                for i,j,theta,phi in zip(proj_range_1,proj_range_2,theta_list,phi_list):
+                    Gamma=C_m[[i],[j]]
+                    n_list=get_Born(a1,a2,b1,b2,Gamma,theta_list=theta,phi_list=phi,rng=self.rng)
+                    self.measure(n_list,[i,j])
         else:
             n_list=get_random(a1,a2,b1,b2,proj_range.shape[0],theta_list=theta_list,phi_list=phi_list,rng=self.rng)
             self.measure(n_list,np.c_[proj_range_1,proj_range_2].flatten())
+
+    def measure_all_Haar(self,sigma=0,even=True,theta_list=0,phi_list=0):
+        proj_range=np.arange(self.L)*2 if even else np.arange(self.L)*2+1
+        C_m=self.C_m_history[-1]
+        proj_range_1=proj_range
+        proj_range_2=(proj_range+1)%(2*self.L)
+        if isinstance(theta_list, int) or isinstance(theta_list, float):
+            theta_list=[theta_list]*len(proj_range_1)
+        if isinstance(phi_list, int) or isinstance(phi_list, float):
+            phi_list=[phi_list]*len(proj_range_1)
+        n_list=get_Haar(sigma,proj_range.shape[0],rng=self.rng,theta_list=theta_list,phi_list=phi_list)
+        self.measure(n_list,np.c_[proj_range_1,proj_range_2].flatten())
+
 
     def mutual_information_cross_ratio(self):
         x=np.array([0,self.L//4,self.L//2,self.L//4*3])
@@ -115,15 +128,50 @@ class GTN:
         MI=[]
         subA=np.arange(x[0],x[1])
         subB=np.arange(x[2],x[3])
-        for shift in range(self.L//2):
+        for shift in np.arange(0,self.L//2):
             MI.append(self.mutual_information_m((subA+shift)%self.L, (subB+shift)%self.L))
         return np.mean(MI)
+        # return MI
 
     def entanglement_contour(self,subregion):
         c_A=self.c_subregion_m(subregion)
         C_f=(np.eye(c_A.shape[0])+1j*c_A)/2
         f,_=la.funm(C_f,lambda x: -x*np.log(x),disp=False)
         return np.diag(f).real.reshape((-1,2)).sum(axis=1).real
+
+    def mutual_information_m(self,subregion_A,subregion_B,Gamma=None):
+        ''' Composite fermion site index'''
+        assert np.intersect1d(subregion_A,subregion_B).size==0 , "Subregion A and B overlap"
+        s_A=self.von_Neumann_entropy_m(subregion_A,Gamma)
+        s_B=self.von_Neumann_entropy_m(subregion_B,Gamma)
+        subregion_AB=np.concatenate([subregion_A,subregion_B])
+        s_AB=self.von_Neumann_entropy_m(subregion_AB)
+        return s_A+s_B-s_AB
+
+    def von_Neumann_entropy_m(self,subregion,Gamma=None):
+        c_A=self.c_subregion_m(subregion,Gamma)
+        val=nla.eigvalsh(1j*c_A)
+        # self.val_sh=val
+        val=np.sort(val)
+        val=(1-val)/2+1e-18j   #\lambda=(1-\xi)/2
+        return np.real(-np.sum(val*np.log(val))-np.sum((1-val)*np.log(1-val)))/2
+
+    def c_subregion_m(self,subregion,Gamma=None):
+        if Gamma is None:
+            Gamma=self.C_m_history[-1]
+        subregion=self.linearize_index(subregion,2)
+        return Gamma[np.ix_(subregion,subregion)]
+
+    def linearize_index(self,subregion,n,k=2,proj=False):
+        try:
+            subregion=np.array(subregion)
+        except:
+            raise ValueError("The subregion is ill-defined"+subregion)
+        if proj:
+            return np.int_(sorted(np.concatenate([n*subregion+i for i in range(0,n,k)])))%(2*self.L)
+        else:
+            return np.int_(sorted(np.concatenate([n*subregion+i for i in range(n)])))%(2*self.L)
+        
 
 
 def get_random(a1,a2,b1,b2,num,rng=None,theta_list=0,phi_list=0):
@@ -149,16 +197,22 @@ def get_random(a1,a2,b1,b2,num,rng=None,theta_list=0,phi_list=0):
     n=np.c_[n1,n2,n3]
     return rotate(n,theta_list,phi_list)
 
+def get_O(rng,n):
+    rng=np.random.default_rng(rng)
+    A=rng.normal(size=(n,n))
+    AA=(A-A.T)/2
+    return la.expm(AA)
+
 def rotate(n,theta,phi):
     n=np.c_[np.cos(theta)*n[:,0]-np.sin(theta)*n[:,1],np.sin(theta)*n[:,0]+np.cos(theta)*n[:,1],n[:,2]]
-    n=np.c_[np.cos(phi)*n[:,0]-np.sin(phi)*n[:,2],n[:,1],np.sin(phi)*n[:,0]+np.cos(phi)*n[:,2]]
+    n=np.c_[np.cos(phi)*n[:,0]+np.sin(phi)*n[:,2],n[:,1],-np.sin(phi)*n[:,0]+np.cos(phi)*n[:,2]]
     return n
 
 
-def get_inplane(n1,num,rng=None):
+def get_inplane(n1,num,rng=None,sigma=1):
     r=np.sqrt(1-n1**2)
     rng=np.random.default_rng(rng)
-    phi=rng.random(num)*2*np.pi
+    phi=rng.random(num)*2*np.pi*sigma
     n2,n3=r*np.cos(phi),r*np.sin(phi)
     return n2,n3
 
@@ -181,6 +235,14 @@ def get_Born(a1,a2,b1,b2,Gamma,rng=None,theta_list=0,phi_list=0):
 
     n1=np.where(u<bndy,solve(coef1,u),solve(coef2,u))
 
+    n2,n3=get_inplane(n1, num,rng=rng)
+    n=np.c_[n1,n2,n3]
+    return rotate(n,theta_list,phi_list)
+
+def get_Haar(sigma,num,rng=None,theta_list=0,phi_list=0):
+    rng=np.random.default_rng(rng)
+    u=rng.random(size=num)
+    n1=rescale(u, 1-2*sigma, 1)
     n2,n3=get_inplane(n1, num,rng=rng)
     n=np.c_[n1,n2,n3]
     return rotate(n,theta_list,phi_list)
@@ -254,24 +316,9 @@ def _contraction(m,proj_list,ix,ix_bar):
     Psi=Psi_mat
 
     Psi=(Psi-Psi.T)/2
-    return Psi
+    return (Psi)
 
-def swap(mat,ix):
-    '''Swap ix with last ix on both col and row'''
-    for i_ind,i in enumerate(ix):
-        mat[[i,-(len(ix)-i_ind)]]=mat[[-(len(ix)-i_ind),i]]
-        mat[:,[i,-(len(ix)-i_ind)]]=mat[:,[-(len(ix)-i_ind),i]]
 
-def linearize_index(subregion,n,k=2,proj=False):
-    try:
-        subregion=np.array(subregion)
-    except:
-        raise ValueError("The subregion is ill-defined"+subregion)
-    if proj:
-        return sorted(np.concatenate([n*subregion+i for i in range(0,n,k)]))
-    else:
-        return sorted(np.concatenate([n*subregion+i for i in range(n)]))
-    
 def interpolate(x1,x2,l0,h0,L,k=1):
     x=np.arange(L)
     h=h0/2

@@ -4,7 +4,7 @@ import scipy.linalg as la
 from copy import copy
 
 class GTN:
-    def __init__(self,L,history=True,seed=None,op=False,random_init=False):
+    def __init__(self,L,history=True,seed=None,op=False,random_init=False,c=[1,1,1]):
         self.L=L
         self.op=op
         self.random_init=random_init
@@ -15,6 +15,7 @@ class GTN:
         self.n_history=[]
         self.i_history=[]
         self.MI_history=[]
+        self.c=c
 
     
     def correlation_matrix(self,op):
@@ -62,14 +63,15 @@ class GTN:
         return blkmat
 
     def kraus(self,n):
-        # return np.array([[0,n[0],n[1],n[2]],
-        #                 [-n[0],0,-n[2],n[1]],
-        #                 [-n[1],n[2],0,-n[0]],
-        #                 [-n[2],-n[1],n[0],0]])
-        return -np.array([[0,n[0],-n[1],n[2]],
-                        [-n[0],0,-n[2],-n[1]],
-                        [n[1],n[2],0,-n[0]],
-                        [-n[2],n[1],n[0],0]])
+        c=self.c
+        return np.array([[0,c[0]*n[0],c[1]*n[1],c[2]*n[2]],
+                        [-c[0]*n[0],0,-c[2]*n[2],c[1]*n[1]],
+                        [-c[1]*n[1],c[2]*n[2],0,-c[0]*n[0]],
+                        [-c[2]*n[2],-c[1]*n[1],c[0]*n[0],0]])
+        # return -np.array([[0,n[0],-n[1],n[2]],
+        #                 [-n[0],0,-n[2],-n[1]],
+        #                 [n[1],n[2],0,-n[0]],
+        #                 [-n[2],n[1],n[0],0]])
         # return -np.array([[0,n[0],n[1],n[2]],
         #                 [-n[0],0,-n[2],n[1]],
         #                 [-n[1],n[2],0,-n[0]],

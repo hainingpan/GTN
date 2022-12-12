@@ -186,8 +186,11 @@ def get_random(a1,a2,b1,b2,num,rng=None,theta_list=0,phi_list=0):
     assert -b1<=-a1<=a2<=b2, "the order of -b1<-a1<a2<b2 not satisfied"
     rng=np.random.default_rng(rng)
     sign=rng.random(size=num)
+    k=1/(b1-a1+b2-a2)
+    n1=np.where(sign<(b1-a1)*k,sign/k-b1,(sign-k*(b1-a1))/k+a2)
+
     # inverse of CDF
-    n1=np.where(sign<.5,sign*2*(b1-a1)-b1,(sign-1/2)*2*(b2-a2)+a2)
+    # n1=np.where(sign<.5,sign*2*(b1-a1)-b1,(sign-1/2)*2*(b2-a2)+a2)
 
     # use rescale
     # n1=np.where(sign<0.5,rescale(sign,y0=-b1,y1=-a1,x0=0,x1=.5),rescale(sign,y0=a2,y1=b2,x0=.5,x1=1))

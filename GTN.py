@@ -105,7 +105,7 @@ class GTN:
             else:
                 for i,j,theta,phi in zip(proj_range_1,proj_range_2,theta_list,phi_list):
                     Gamma=C_m[[i],[j]]
-                    n_list=get_Born(a1,a2,b1,b2,Gamma,theta_list=theta,phi_list=phi,rng=self.rng)
+                    n_list=get_Born_A(a1,a2,b1,b2,Gamma,rng=self.rng) if even else get_Born_B(a1,a2,b1,b2,Gamma,rng=self.rng)
                     self.measure(n_list,[i,j])
         else:
             n_list=get_random(a1,a2,b1,b2,proj_range.shape[0],theta_list=theta_list,phi_list=phi_list,rng=self.rng)
@@ -125,8 +125,8 @@ class GTN:
 
 
     def mutual_information_cross_ratio(self):
-        x=np.array([0,self.L//4,self.L//2,self.L//4*3])
-        # x=np.array([0,self.L//8,self.L//2,self.L//8*5])
+        # x=np.array([0,self.L//4,self.L//2,self.L//4*3])
+        x=np.array([0,self.L//8,self.L//2,self.L//8*5])
         MI=[]
         subA=np.arange(x[0],x[1])
         subB=np.arange(x[2],x[3])
@@ -147,7 +147,7 @@ class GTN:
         s_A=self.von_Neumann_entropy_m(subregion_A,Gamma)
         s_B=self.von_Neumann_entropy_m(subregion_B,Gamma)
         subregion_AB=np.concatenate([subregion_A,subregion_B])
-        s_AB=self.von_Neumann_entropy_m(subregion_AB)
+        s_AB=self.von_Neumann_entropy_m(subregion_AB,Gamma)
         return s_A+s_B-s_AB
 
     def von_Neumann_entropy_m(self,subregion,Gamma=None):
@@ -221,7 +221,7 @@ def get_inplane(n1,num,rng=None,sigma=1):
     n2,n3=r*np.cos(phi),r*np.sin(phi)
     return n2,n3
 
-def get_Born(a1,a2,b1,b2,Gamma,rng=None,theta_list=0,phi_list=0):
+def get_Born_A(a1,a2,b1,b2,Gamma,rng=None,):
     '''
         -b1<-a1<a2<b2 
         Gamma: list for all parities
@@ -242,7 +242,31 @@ def get_Born(a1,a2,b1,b2,Gamma,rng=None,theta_list=0,phi_list=0):
 
     n2,n3=get_inplane(n1, num,rng=rng)
     n=np.c_[n1,n2,n3]
-    return rotate(n,theta_list,phi_list)
+    return n
+
+    # return rotate(n,theta_list,phi_list)
+
+def get_Born_B(a1,a2,b1,b2,Gamma,rng=None):
+    '''
+        -b1<-a1<a2<b2 
+        Gamma: list for all parities
+        
+        n1=True: nA=(n1,n2,n3)
+        n1=True: nB=(n3,n1,n2)
+    '''
+    assert -b1<=-a1<=a2<=b2, "the order of -b1<-a1<a2<b2 not satisfied"
+    # num=Gamma.shape[0]
+    rng=np.random.default_rng(rng)
+    s=get_random(a1,a2,b1,b2,num=1,rng=rng)[0,0]
+    phi=get_random_phi(s,Gamma[0],rng.random(size=1)[0])
+    # return phi
+    return np.array([[np.sin(phi)*np.sqrt(1-s**2),s,np.cos(phi)*np.sqrt(1-s**2)]])
+
+def get_random_phi(s,Gamma,u):
+    phi=0
+    while np.abs((phi-np.sqrt(1-s**2)*Gamma*(np.cos(phi)-1))/(2*np.pi)-u)>1e-8:
+        phi=u*2*np.pi+np.sqrt(1-s**2)*Gamma*(np.cos(phi)-1)
+    return phi
 
 def get_Haar(sigma,num,rng=None,theta_list=0,phi_list=0):
     rng=np.random.default_rng(rng)

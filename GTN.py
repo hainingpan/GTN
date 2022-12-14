@@ -4,7 +4,7 @@ import scipy.linalg as la
 from copy import copy
 
 class GTN:
-    def __init__(self,L,history=True,seed=None,op=False,random_init=False,c=[1,1,1]):
+    def __init__(self,L,history=True,seed=None,op=False,random_init=False,c=[-1,1,-1]):
         self.L=L
         self.op=op
         self.random_init=random_init
@@ -257,9 +257,17 @@ def get_Born_B(a1,a2,b1,b2,Gamma,rng=None):
     assert -b1<=-a1<=a2<=b2, "the order of -b1<-a1<a2<b2 not satisfied"
     # num=Gamma.shape[0]
     rng=np.random.default_rng(rng)
+
     s=get_random(a1,a2,b1,b2,num=1,rng=rng)[0,0]
-    phi=get_random_phi(s,Gamma[0],rng.random(size=1)[0])
-    # return phi
+
+    # w1=(a2+b2)/((b1-a1)*(a1+a2+b1+b2))
+    # w2=(a1+b1)/((b2-a2)*(a1+a2+b1+b2))
+    # bndy=w1*(b1-a1)
+    # u=rng.random()
+    # s=np.where(u<bndy,u/w1-b1,(u-w1*(b1-a1))/w2+a2)
+
+    phi=get_random_phi(s,Gamma[0],rng.random())
+    # return s,phi
     return np.array([[np.sin(phi)*np.sqrt(1-s**2),s,np.cos(phi)*np.sqrt(1-s**2)]])
 
 def get_random_phi(s,Gamma,u):

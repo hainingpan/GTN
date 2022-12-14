@@ -104,7 +104,7 @@ class GTN:
                 self.measure(n_list,np.c_[proj_range_1,proj_range_2].flatten())
             else:
                 for i,j in zip(proj_range_1,proj_range_2):
-                    Gamma=-C_m[[i],[j]]
+                    Gamma=self.C_m_history[-1][[i],[j]]
                     if even:
                         n_list=get_Born_A(a1,a2,b1,b2,Gamma,rng=self.rng)
                     else:

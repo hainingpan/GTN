@@ -4,7 +4,7 @@ import scipy.linalg as la
 from copy import copy
 
 class GTN:
-    def __init__(self,L,history=True,seed=None,op=False,random_init=False,c=[-1,1,-1]):
+    def __init__(self,L,history=True,seed=None,op=False,random_init=False,c=[1,1,1]):
         self.L=L
         self.op=op
         self.random_init=random_init
@@ -103,9 +103,12 @@ class GTN:
                 n_list=get_Born(a1,a2,b1,b2,Gamma_list,theta_list=theta_list,phi_list=phi_list,rng=self.rng)
                 self.measure(n_list,np.c_[proj_range_1,proj_range_2].flatten())
             else:
-                for i,j,theta,phi in zip(proj_range_1,proj_range_2,theta_list,phi_list):
-                    Gamma=C_m[[i],[j]]
-                    n_list=get_Born_A(a1,a2,b1,b2,Gamma,rng=self.rng) if even else get_Born_B(a1,a2,b1,b2,Gamma,rng=self.rng)
+                for i,j in zip(proj_range_1,proj_range_2):
+                    Gamma=-C_m[[i],[j]]
+                    if even:
+                        n_list=get_Born_A(a1,a2,b1,b2,Gamma,rng=self.rng)
+                    else:
+                        n_list=get_Born_B(a1,a2,b1,b2,Gamma,rng=self.rng)
                     self.measure(n_list,[i,j])
         else:
             n_list=get_random(a1,a2,b1,b2,proj_range.shape[0],theta_list=theta_list,phi_list=phi_list,rng=self.rng)
@@ -234,9 +237,9 @@ def get_Born_A(a1,a2,b1,b2,Gamma,rng=None,):
     rng=np.random.default_rng(rng)
     u=rng.random(size=num)
     theta1,theta2=(a2+b2)/((b1-a1)*(a1+a2+b1+b2)),(a1+b1)/((b2-a2)*(a1+a2+b1+b2))
-    bndy=theta1*(-a1+b1+1/2*(a1**2-b1**2)*Gamma)
-    coef1=1/2*theta1*Gamma,theta1,theta1*b1-1/2*theta1*b1**2*Gamma
-    coef2=1/2*theta2*Gamma,theta2,theta1*(-a1+b1+(a1**2-b1**2)*Gamma/2)-a2**2*Gamma*theta2/2-theta2*a2
+    bndy=theta1*(-a1+b1-1/2*(a1**2-b1**2)*Gamma)
+    coef1=-1/2*theta1*Gamma,theta1,theta1*b1+1/2*theta1*b1**2*Gamma
+    coef2=-1/2*theta2*Gamma,theta2,theta1*(-a1+b1-(a1**2-b1**2)*Gamma/2)+a2**2*Gamma*theta2/2-theta2*a2
 
     n1=np.where(u<bndy,solve(coef1,u),solve(coef2,u))
 
@@ -272,8 +275,8 @@ def get_Born_B(a1,a2,b1,b2,Gamma,rng=None):
 
 def get_random_phi(s,Gamma,u):
     phi=0
-    while np.abs((phi-np.sqrt(1-s**2)*Gamma*(np.cos(phi)-1))/(2*np.pi)-u)>1e-8:
-        phi=u*2*np.pi+np.sqrt(1-s**2)*Gamma*(np.cos(phi)-1)
+    while np.abs((phi-np.sqrt(1-s**2)*Gamma*(1-np.cos(phi)))/(2*np.pi)-u)>1e-8:
+        phi=u*2*np.pi+np.sqrt(1-s**2)*Gamma*(1-np.cos(phi))
     return phi
 
 def get_Haar(sigma,num,rng=None,theta_list=0,phi_list=0):

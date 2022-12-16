@@ -151,7 +151,7 @@ class GTN:
 
     def mutual_information_cross_ratio(self,ratio=[1,4]):
         
-        x=np.array([0,self.L//ratio[2]*ratio[1],self.L//2,self.L//2+self.L//ratio[2]*ratio[1]])
+        x=np.array([0,self.L//ratio[1]*ratio[0],self.L//2,self.L//2+self.L//ratio[1]*ratio[0]])
         # x=np.array([0,self.L//8,self.L//2,self.L//8*5])
         MI=[]
         subA=np.arange(x[0],x[1])

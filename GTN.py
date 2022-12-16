@@ -90,7 +90,6 @@ class GTN:
 
     def measure_all_sync(self,a1,a2,b1,b2,even=True,theta_list=0,phi_list=0,Born=False):
         proj_range=np.arange(self.L)*2 if even else np.arange(self.L)*2+1
-        C_m=self.C_m_history[-1]
         proj_range_1=proj_range if not self.op else proj_range+2* self.L
         proj_range_2=(proj_range+1)%(2*self.L) if not self.op else (proj_range+1)%(2*self.L) + 2*self.L
         if isinstance(theta_list, int) or isinstance(theta_list, float):
@@ -98,7 +97,7 @@ class GTN:
         if isinstance(phi_list, int) or isinstance(phi_list, float):
             phi_list=[phi_list]*len(proj_range_1)
         if Born:
-            if C_m.size==0:
+            if self.C_m_history[-1].size==0:
                 Gamma_list=np.array([1]*self.L)
                 n_list=get_Born(a1,a2,b1,b2,Gamma_list,theta_list=theta_list,phi_list=phi_list,rng=self.rng)
                 self.measure(n_list,np.c_[proj_range_1,proj_range_2].flatten())
@@ -125,6 +124,29 @@ class GTN:
             phi_list=[phi_list]*len(proj_range_1)
         n_list=get_Haar(sigma,proj_range.shape[0],rng=self.rng,theta_list=theta_list,phi_list=phi_list)
         self.measure(n_list,np.c_[proj_range_1,proj_range_2].flatten())
+
+    def measure_all_tri_op(self,p,Born=False,even=True):
+        '''The Kraus operator is composed of only three
+        sqrt(1-p) exp(i*phi* i* gamma_i * gamma_i+1), phi ~ U[0,2pi]; n=(0,cos(phi),sin(phi))
+        sqrt(p) (1+i* gamma_i * gamma_i+1)/2; n=(-1,0,0)
+        sqrt(p) (1-i* gamma_i * gamma_i+1)/2; n=(1,0,0)
+
+        For n_A, we literally take p, while for n_B we substitute the prob from p to 1-p
+        '''
+        proj_range=np.arange(self.L)*2 if even else np.arange(self.L)*2+1
+        proj_range_1=proj_range if not self.op else proj_range+2* self.L
+        proj_range_2=(proj_range+1)%(2*self.L) if not self.op else (proj_range+1)%(2*self.L) + 2*self.L
+        if Born:
+            if self.C_m_history[-1].size==0:
+                pass
+            else:
+                for i,j in zip(proj_range_1,proj_range_2):
+                    Gamma=self.C_m_history[-1][[i],[j]]
+                    n_list=get_random_tri_op(p,Gamma,rng=self.rng)
+                    self.measure(n_list,[i,j])
+        else:
+            n_list=get_random_tri_op(p,proj_range.shape[0],rng=self.rng)
+            self.measure(n_list,np.c_[proj_range_1,proj_range_2].flatten())
 
 
     def mutual_information_cross_ratio(self):
@@ -177,7 +199,19 @@ class GTN:
         else:
             return np.int_(sorted(np.concatenate([n*subregion+i for i in range(n)])))%(2*self.L)
         
+def get_random_tri_op(p,num,rng=None):
+    rng=np.random.default_rng(rng)
+    sign=rng.random(size=num)
+    n1= (sign<p/2)*(-1)+(sign>1-p/2)
+    n2,n3=get_inplane(n1, num,rng=rng)
+    return np.c_[n1,n2,n3]
 
+def get_Born_tri_op(p,num,Gamma,rng=None):
+    rng=np.random.default_rng(rng)
+    sign=rng.random(size=num)
+    n1= (sign<p*(1+Gamma)/2)*(-1)+(sign>p*(1+Gamma)/2+1-p)
+    n2,n3=get_inplane(n1, num,rng=rng)
+    return np.c_[n1,n2,n3]
 
 def get_random(a1,a2,b1,b2,num,rng=None,theta_list=0,phi_list=0):
     '''

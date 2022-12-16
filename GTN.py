@@ -149,9 +149,10 @@ class GTN:
             self.measure(n_list,np.c_[proj_range_1,proj_range_2].flatten())
 
 
-    def mutual_information_cross_ratio(self):
-        # x=np.array([0,self.L//4,self.L//2,self.L//4*3])
-        x=np.array([0,self.L//8,self.L//2,self.L//8*5])
+    def mutual_information_cross_ratio(self,ratio=[1,4]):
+        
+        x=np.array([0,self.L//ratio[2]*ratio[1],self.L//2,self.L//2+self.L//ratio[2]*ratio[1]])
+        # x=np.array([0,self.L//8,self.L//2,self.L//8*5])
         MI=[]
         subA=np.arange(x[0],x[1])
         subB=np.arange(x[2],x[3])

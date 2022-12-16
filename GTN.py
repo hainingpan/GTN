@@ -142,7 +142,7 @@ class GTN:
             else:
                 for i,j in zip(proj_range_1,proj_range_2):
                     Gamma=self.C_m_history[-1][[i],[j]]
-                    n_list=get_random_tri_op(p,Gamma,rng=self.rng)
+                    n_list=get_Born_tri_op(p,Gamma,rng=self.rng)
                     self.measure(n_list,[i,j])
         else:
             n_list=get_random_tri_op(p,proj_range.shape[0],rng=self.rng)
@@ -204,10 +204,11 @@ def get_random_tri_op(p,num,rng=None):
     rng=np.random.default_rng(rng)
     sign=rng.random(size=num)
     n1= (sign<p/2)*(-1)+(sign>1-p/2)
-    n2,n3=get_inplane(n1, num,rng=rng)
+    n2,n3=get_inplane(n1, num,rng=rng,)
     return np.c_[n1,n2,n3]
 
-def get_Born_tri_op(p,num,Gamma,rng=None):
+def get_Born_tri_op(p,Gamma,rng=None):
+    num=Gamma.shape[0]
     rng=np.random.default_rng(rng)
     sign=rng.random(size=num)
     n1= (sign<p*(1+Gamma)/2)*(-1)+(sign>p*(1+Gamma)/2+1-p)

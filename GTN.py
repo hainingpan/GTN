@@ -207,7 +207,7 @@ def get_random_tri_op(p,num,rng=None):
     sign=rng.random(size=num)
     n1= (sign<p/2)*(-1)+(sign>1-p/2)
     # n2,n3=get_inplane(n1, num,rng=rng)
-    n2,n3=get_inplane_norm(n1, num,rng=rng)
+    n2,n3=get_inplane_norm(n1, num,rng=rng,sigma=np.pi/8)
     return np.c_[n1,n2,n3]
 
 def get_Born_tri_op(p,Gamma,rng=None):

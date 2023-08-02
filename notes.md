@@ -71,3 +71,10 @@ it seems that there is a U^dag sigam^z U = sigma^z, where U = exp(i alpha * sigm
 - [ ] Check QA-QB conservation. Here, Qa and Qb are just number density
 - [ ] Find the area phase by parameterization, maybe beta is a starting point
 - [ ] Find domain wall
+
+---
+- [x] add a illustrator for Fig. 1
+
+
+
+(Hi Chao-Ming, I have produced .. and also updated the overleaf which we had before [link], please ...)

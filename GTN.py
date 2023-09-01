@@ -4,29 +4,49 @@ import scipy.linalg as la
 from copy import copy
 
 class GTN:
-    def __init__(self,L,history=True,seed=None,op=False,random_init=False,c=[1,1,1]):
+    def __init__(self,L,history=True,seed=None,op=False,random_init=False,c=[1,1,1],pbc=True,trijunction=False):
         self.L=L
         self.op=op
+        self.trijunction=trijunction
         self.random_init=random_init
         self.rng=np.random.default_rng(seed)
-        self.C_m=self.correlation_matrix(op=op)
+        self.C_m=self.correlation_matrix()
         self.C_m_history=[self.C_m]
         self.history=history
         self.n_history=[]
         self.i_history=[]
         self.MI_history=[]
+        self.p_history=[]
         self.c=c
+        self.pbc=pbc
 
     
-    def correlation_matrix(self,op):
-        if op:
-            return np.zeros((0,0))
+    def correlation_matrix(self):
+        '''if `self.op` is on, the computational chain will duplicate a reference chain, where both sites (i,i+2L) are coupled, with parity +1'''
+        if self.trijunction:
+            '''construct trijuction, the order of the three chain are arranged from outmost to innermost, namely, 0->2L-1 is Chain 0; 2L->4L-1 is Chain 1; 4L->6L-1 is Chain 2'''
+            if self.op:
+                Gamma=np.zeros((12*self.L,12*self.L))
+                EPR=np.fliplr(np.diag([1,-1]))
+                for i in range(6*self.L):
+                    Gamma[np.ix_([i,i+6*self.L],[i,i+6*self.L])]=EPR
+            else:
+                Omega=np.array([[0,1.],[-1.,0]])
+                Omega_diag=np.kron(np.eye(self.L),Omega)
+                Gamma=np.kron(np.eye(3),Omega_diag)
         else:
-            Omega=np.array([[0,1.],[-1.,0]])
-            Omega_diag=np.kron(np.eye(self.L),Omega)
-            O=get_O(self.rng,2*self.L) if self.random_init else np.eye(2*self.L)
-            Gamma=O@Omega_diag@O.T
-            return (Gamma-Gamma.T)/2
+            '''construct normal 1d chain'''
+            if self.op:
+                Gamma=np.zeros((4*self.L,4*self.L))
+                EPR=np.fliplr(np.diag([1,-1]))
+                for i in range(2*self.L):
+                    Gamma[np.ix_([i,i+2*self.L],[i,i+2*self.L])]=EPR
+            else:
+                Omega=np.array([[0,1.],[-1.,0]])
+                Omega_diag=np.kron(np.eye(self.L),Omega)
+                O=get_O(self.rng,2*self.L) if self.random_init else np.eye(2*self.L)
+                Gamma=O@Omega_diag@O.T
+        return (Gamma-Gamma.T)/2
             
 
     def measure(self,n_list,ix):
@@ -34,7 +54,8 @@ class GTN:
 
         m=self.C_m_history[-1].copy()
         proj=[self.kraus(n) for n in n_list]
-        ix_bar=np.array([i for i in np.arange(self.L*2) if i not in ix]) if not self.op else np.array([i for i in np.arange(self.L*4) if i not in ix])
+        # ix_bar=np.array([i for i in np.arange(self.L*2) if i not in ix]) if not self.op else np.array([i for i in np.arange(self.L*4) if i not in ix])
+        ix_bar=np.array([i for i in np.arange(self.C_m[-1].shape[0]) if i not in ix])
         Psi=_contraction(m,proj,ix,ix_bar)
         assert np.abs(np.trace(Psi))<1e-5, "Not trace zero {:e}".format(np.trace(Psi))
         if self.history:
@@ -138,18 +159,33 @@ class GTN:
         proj_range_2=(proj_range+1)%(2*self.L) if not self.op else (proj_range+1)%(2*self.L) + 2*self.L
         if isinstance(p_list, int) or isinstance(p_list, float):
             p_list=np.array([p_list]*len(proj_range_1))
+        if self.history:
+            self.p_history.append(p_list)
+        else:
+            self.p_history=[p_list]
         if Born:
-            if self.C_m_history[-1].size==0:
-                pass
-            else:
-                for i,j,p in zip(proj_range_1,proj_range_2,p_list):
-                    Gamma=self.C_m_history[-1][[i],[j]]
-                    n_list=get_Born_tri_op(p,Gamma,rng=self.rng)
-                    self.measure(n_list,[i,j])
+            for i,j,p in zip(proj_range_1,proj_range_2,p_list):
+                Gamma=self.C_m_history[-1][[i],[j]]
+                n_list=get_Born_tri_op(p,Gamma,rng=self.rng)
+                if not self.pbc and not even and i==proj_range_1[-1]:
+                    continue
+                self.measure(n_list,[i,j])
         else:
             n_list=get_random_tri_op(p_list,proj_range.shape[0],rng=self.rng)
             self.measure(n_list,np.c_[proj_range_1,proj_range_2].flatten())
 
+    def measure_list_tri_op(self,site_list,p_list,Born=True,):
+        '''site_list: [[i1,j1],[i2,j2],[i3,j3],...] measures [i1,j1], [i2,j2], [i3,j3] respectively
+        p_list: [p1,p2,p3,...] measures with prob p1,p2,p3, respectively
+        '''
+        if Born:
+            assert len(site_list)== len(p_list), f'site_list ({len(site_list)}) is not equal to p_list ({len(p_list)})'
+            for (i,j),p in zip(site_list,p_list):
+                Gamma=self.C_m_history[-1][[i],[j]]
+                n_list=get_Born_tri_op(p,Gamma,rng=self.rng)
+                self.measure(n_list,[i,j])
+        else:
+            pass
 
     def mutual_information_cross_ratio(self,ratio=[1,4]):
         
@@ -164,10 +200,11 @@ class GTN:
         # return MI
 
     def entanglement_contour(self,subregion):
-        c_A=self.c_subregion_m(subregion)
+        c_A=self.c_subregion_m(subregion)+1e-18j
         C_f=(np.eye(c_A.shape[0])+1j*c_A)/2
         f,_=la.funm(C_f,lambda x: -x*np.log(x),disp=False)
-        return np.diag(f).real.reshape((-1,2)).sum(axis=1).real
+        # return np.diag(f).real.reshape((-1,2)).sum(axis=1)
+        return np.diag(f).real
 
     def mutual_information_m(self,subregion_A,subregion_B,Gamma=None):
         ''' Composite fermion site index'''
@@ -198,16 +235,16 @@ class GTN:
         except:
             raise ValueError("The subregion is ill-defined"+subregion)
         if proj:
-            return np.int_(sorted(np.concatenate([n*subregion+i for i in range(0,n,k)])))%(2*self.L)
+            return np.int_(sorted(np.concatenate([n*subregion+i for i in range(0,n,k)])))
         else:
-            return np.int_(sorted(np.concatenate([n*subregion+i for i in range(n)])))%(2*self.L)
+            return np.int_(sorted(np.concatenate([n*subregion+i for i in range(n)])))
         
 def get_random_tri_op(p,num,rng=None):
     rng=np.random.default_rng(rng)
     sign=rng.random(size=num)
     n1= (sign<p/2)*(-1)+(sign>1-p/2)
     # n2,n3=get_inplane(n1, num,rng=rng)
-    n2,n3=get_inplane_norm(n1, num,rng=rng,sigma=np.pi/8)
+    n2,n3=get_inplane_norm(n1, num,rng=rng,sigma=np.pi/10)
     return np.c_[n1,n2,n3]
 
 def get_Born_tri_op(p,Gamma,rng=None):
@@ -365,12 +402,12 @@ def _contraction(m,proj_list,ix,ix_bar):
     for i,p in enumerate(proj_list):
         proj[np.ix_([2*i,2*i+1,2*i+2*len(proj_list),2*i+2*len(proj_list)+1],[2*i,2*i+1,2*i+2*len(proj_list),2*i+2*len(proj_list)+1])]=p
 
-    if m.size==0:
-        return proj
-    else:
-        Gamma_LL=m[np.ix_(ix_bar,ix_bar)]
-        Gamma_LR=m[np.ix_(ix_bar,ix)]
-        Gamma_RR=m[np.ix_(ix,ix)]
+    # if m.shape[0]==0:
+    #     return proj
+        
+    Gamma_LL=m[np.ix_(ix_bar,ix_bar)]
+    Gamma_LR=m[np.ix_(ix_bar,ix)]
+    Gamma_RR=m[np.ix_(ix,ix)]
 
     Upsilon_LL=proj[:len(ix),:len(ix)]
     Upsilon_RR=proj[len(ix):,len(ix):]
@@ -393,7 +430,7 @@ def _contraction(m,proj_list,ix,ix_bar):
         # Psi=mat1+mat2@nla.inv(mat3)@mat2.T
             Psi=mat1+mat2@(la.lstsq(mat3,mat2.T)[0])
     else:
-        print('mat2 is singular')
+        # print('mat2 is singular')
         Psi=mat1
     
     Psi_mat=np.zeros_like(Psi)
@@ -407,7 +444,7 @@ def _contraction(m,proj_list,ix,ix_bar):
     return (Psi)
 
 
-def interpolate(x1,x2,l0,h0,L,k=1):
+def interpolation(x1,x2,l0,h0,L,k=1):
     x=np.arange(L)
     h=h0/2
     l=l0-h0/2

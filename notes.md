@@ -79,3 +79,6 @@ it seems that there is a U^dag sigam^z U = sigma^z, where U = exp(i alpha * sigm
 (Hi Chao-Ming, I have produced .. and also updated the overleaf which we had before [link], please ...)
 
 -[ ] Entanglement entropy precision with problem if 6L~384
+
+
+$\exp(\alpha (c_1^\dagger c_2+ c_2^\dagger c_1) + \beta (i c_1^\dagger c_2-i c_2^\dagger c_1)+i\gamma(c_1^\dagger c_1-c_2^\dagger c_2))\exp(i\theta)$

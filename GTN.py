@@ -3,6 +3,7 @@ import numpy as np
 import numpy.linalg as nla
 import scipy.linalg as la
 from copy import copy
+from itertools import permutations
 
 class GTN:
     def __init__(self,L,history=True,seed=None,op=False,random_init=False,c=[1,1,1],pbc=True,trijunction=False):
@@ -257,7 +258,7 @@ class GTN:
         for i, alpha,beta,theta1,theta2 in zip(proj_range,alpha_list,beta_list,theta1_list,theta2_list):
             self.measure_class_A(alpha,beta,theta1,theta2,np.array([i,(i+1)%(2*self.L),(i+2)%(2*self.L),(i+3)%(2*self.L)]),orth=orth)
     
-    def measure_all_class_AIII(self,A_list,Born=True,class_A=False,even=True):
+    def measure_all_class_AIII(self,A_list,Born=True,class_A=False,even=True,orth=False):
         proj_range=np.arange(self.L//2)*4 if even else np.arange(self.L//2)*4+2 # Majorana site index of left leg
         if isinstance(A_list, int) or isinstance(A_list, float):
             A_list=np.array([A_list]*len(proj_range))
@@ -270,7 +271,7 @@ class GTN:
                 legs=[i,(i+1)%(2*self.L),(i+2)%(2*self.L),(i+3)%(2*self.L)]
                 Gamma=self.C_m_history[-1][np.ix_(legs,legs)]
                 kind,theta1,theta2=get_Born_class_AIII(A=A,Gamma=Gamma,rng=self.rng,class_A=class_A,)
-                self.measure_class_AIII(A=A,theta1=theta1,theta2=theta2,kind=kind,ix=legs)
+                self.measure_class_AIII(A=A,theta1=theta1,theta2=theta2,kind=kind,ix=legs,orth=orth)
         else:
             pass
         
@@ -453,8 +454,8 @@ def get_Born_class_AIII(A,Gamma,class_A=False,rng=None):
     rng=np.random.default_rng(rng)
     prob={(s1,s2): Gamma[0,1]*(-s1-s2)/8*A + Gamma[0,3]*(-s1+s2)/8*A + Gamma[1,2]*(s1-s2)/8*A + Gamma[2,3]*(-s1-s2)/8*A - (-Gamma[0,1]*Gamma[2,3]+Gamma[0,2]*Gamma[1,3]-Gamma[0,3]*Gamma[1,2])*s1*s2*A**2/4+1/4 for s1 in [-1,1] for s2 in [-1,1]}
     for key,val in prob.items():
-        # assert val>-1e-9, f'{key} < 0 = {val}, {prob}'
-        # assert val<1+1e-9, f'{key} > 1 = {val}'
+        assert val>-1e-9, f'{key} < 0 = {val}, {prob}'
+        assert val<1+1e-9, f'{key} > 1 = {val}'
         prob[key]=np.clip(val,0.,1.)
     # print(prob)
     if not class_A:
@@ -661,9 +662,9 @@ def _contraction(m,proj_list,ix,ix_bar,combine=True,A_D=None):
     if A_D is not None:
         # orthogonalize Psi, see App. B2 in PhysRevB.106.134206
         if np.abs(np.diag(Psi@Psi)+1).max()>1e-10:
-            O,_,_=block_diagonalize(Psi)
-            Psi=O.T@A_D@O
-    Psi=(Psi-Psi.T)/2
+
+            Psi=purify(Psi)
+            Psi=(Psi-Psi.T)/2
     return (Psi)
 
 
@@ -672,6 +673,15 @@ def interpolation(x1,x2,l0,h0,L,k=1):
     h=h0/2
     l=l0-h0/2
     return (h-l)/2*(np.tanh((x-x1)*k)+1)+l-(h-l)/2*(np.tanh((x-x2)*k)+1)+h
+def purify(A):
+    # purify A, see App. B2 in PhysRevB.106.134206
+    val,vec=np.linalg.eigh(A/1j)
+    val[val<0]=-1
+    val[val>0]=1
+    return -(vec@np.diag(val)@vec.conj().T).imag
+def purify_O(A,A_D):
+    O,_,_=block_diagonalize(A)
+    return O.T@A_D@O
 
 def block_diagonalize(A,thres=1e-10):
     '''A is an anti symmetry matrix for covariance matrix

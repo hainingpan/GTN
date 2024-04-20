@@ -1,3 +1,4 @@
+# %%writefile GTN.py 
 import numpy as np
 import numpy.linalg as nla
 import scipy.linalg as la
@@ -44,6 +45,7 @@ class GTN:
             else:
                 Omega=np.array([[0,1.],[-1.,0]])
                 Omega_diag=np.kron(np.eye(self.L),Omega)
+                self.A_D=Omega_diag
                 O=get_O(self.rng,2*self.L) if self.random_init else np.eye(2*self.L)
                 Gamma=O@Omega_diag@O.T
         return (Gamma-Gamma.T)/2
@@ -98,9 +100,132 @@ class GTN:
         #                 [-n[1],n[2],0,-n[0]],
         #                 [-n[2],-n[1],n[0],0]])
     
+    def op_class_A(self,alpha,kind):
+        """kind = {"+","-","L","R"}"""
+        Gamma=np.zeros((8,8),dtype=float)
+        assert -1<alpha<1, "alpha should be within [-1,1], such that it will be converted to arctanh(alpha)"
+        alpha=np.arctanh(alpha)
+        if kind == "+":
+            sqrt_A=((1/2)*(-72*np.sinh(alpha) + 39*np.sinh(2*alpha) - 312*np.cosh(alpha) + 89*np.cosh(2*alpha) + 224)/(np.cosh(2*alpha) + 1))**(1/2)
+            Gamma[0,1]=Gamma[0,3]=Gamma[2,3]=Gamma[5,6]=6*np.sinh((1/2)*alpha)**2/np.cosh(alpha) + 2*np.sinh((1/2)*alpha)*np.cosh((1/2)*alpha)/np.cosh(alpha)
+            Gamma[1,2]=Gamma[4,5]=Gamma[4,7]=Gamma[6,7]=-(6*np.sinh((1/2)*alpha)**2/np.cosh(alpha) + 2*np.sinh((1/2)*alpha)*np.cosh((1/2)*alpha)/np.cosh(alpha))
+            Gamma[0,4]=Gamma[1,5]=Gamma[2,6]=Gamma[3,7]=(9/2)*np.sinh((1/2)*alpha)**2/np.cosh(alpha) + 3*np.sinh((1/2)*alpha)*np.cosh((1/2)*alpha)/np.cosh(alpha) + (1/2)*np.cosh((1/2)*alpha)**2/np.cosh(alpha)
+            Gamma[2,4]=Gamma[3,5]=Gamma[0,6]=Gamma[1,7]=-8*np.sinh((1/2)*alpha)**2/np.cosh(alpha)
+        elif kind == "-":
+            sqrt_A=((1/2)*(72*np.sinh(alpha) - 39*np.sinh(2*alpha) - 312*np.cosh(alpha) + 89*np.cosh(2*alpha) + 224)/(np.cosh(2*alpha) + 1))**(1/2)
+            Gamma[0,1]=Gamma[1,2]=Gamma[2,3]=Gamma[4,7]=6*np.sinh((1/2)*alpha)**2/np.cosh(alpha) - 2*np.sinh((1/2)*alpha)*np.cosh((1/2)*alpha)/np.cosh(alpha)
+            Gamma[0,3]=Gamma[4,5]=Gamma[5,6]=Gamma[6,7]=-6*np.sinh((1/2)*alpha)**2/np.cosh(alpha) + 2*np.sinh((1/2)*alpha)*np.cosh((1/2)*alpha)/np.cosh(alpha)
+            Gamma[0,4]=Gamma[1,5]=Gamma[2,6]=Gamma[3,7]=(9/2)*np.sinh((1/2)*alpha)**2/np.cosh(alpha) - 3*np.sinh((1/2)*alpha)*np.cosh((1/2)*alpha)/np.cosh(alpha) + (1/2)*np.cosh((1/2)*alpha)**2/np.cosh(alpha)
+            Gamma[2,4]=Gamma[3,5]=Gamma[0,6]=Gamma[1,7]=8*np.sinh((1/2)*alpha)**2/np.cosh(alpha)
+        elif kind == "L":
+            sqrt_A=((1/2)*(-72*np.sinh(alpha) + 39*np.sinh(2*alpha) - 312*np.cosh(alpha) + 89*np.cosh(2*alpha) + 224)/(np.cosh(2*alpha) + 1))**(1/2)
+            Gamma[0,1]=Gamma[0,2]=Gamma[1,3]=Gamma[2,3]=6*np.sinh((1/2)*alpha)**2/np.cosh(alpha) + 2*np.sinh((1/2)*alpha)*np.cosh((1/2)*alpha)/np.cosh(alpha)
+            Gamma[4,5]=Gamma[4,6]=Gamma[5,7]=Gamma[6,7]=-6*np.sinh((1/2)*alpha)**2/np.cosh(alpha) - 2*np.sinh((1/2)*alpha)*np.cosh((1/2)*alpha)/np.cosh(alpha)
+            Gamma[0,4]=Gamma[1,5]=Gamma[2,6]=Gamma[3,7]=(9/2)*np.sinh((1/2)*alpha)**2/np.cosh(alpha) + 3*np.sinh((1/2)*alpha)*np.cosh((1/2)*alpha)/np.cosh(alpha) + (1/2)*np.cosh((1/2)*alpha)**2/np.cosh(alpha)
+            Gamma[0,7]=Gamma[3,4]=8*np.sinh((1/2)*alpha)**2/np.cosh(alpha)
+            Gamma[1,6]=Gamma[2,5]=-8*np.sinh((1/2)*alpha)**2/np.cosh(alpha)
+        elif kind == "R":
+            sqrt_A=((1/2)*(72*np.sinh(alpha) - 39*np.sinh(2*alpha) - 312*np.cosh(alpha) + 89*np.cosh(2*alpha) + 224)/(np.cosh(2*alpha) + 1))**(1/2)
+            Gamma[0,1]=Gamma[2,3]=Gamma[4,6]=Gamma[5,7]=6*np.sinh((1/2)*alpha)**2/np.cosh(alpha) - 2*np.sinh((1/2)*alpha)*np.cosh((1/2)*alpha)/np.cosh(alpha)
+            Gamma[0,2]=Gamma[1,3]=Gamma[4,5]=Gamma[6,7]=-6*np.sinh((1/2)*alpha)**2/np.cosh(alpha) + 2*np.sinh((1/2)*alpha)*np.cosh((1/2)*alpha)/np.cosh(alpha)
+            Gamma[0,4]=Gamma[1,5]=Gamma[2,6]=Gamma[3,7]= (9/2)*np.sinh((1/2)*alpha)**2/np.cosh(alpha) - 3*np.sinh((1/2)*alpha)*np.cosh((1/2)*alpha)/np.cosh(alpha) + (1/2)*np.cosh((1/2)*alpha)**2/np.cosh(alpha)
+            Gamma[0,7]=Gamma[3,4]=-8*np.sinh((1/2)*alpha)**2/np.cosh(alpha)
+            Gamma[1,6]=Gamma[2,5]=8*np.sinh((1/2)*alpha)**2/np.cosh(alpha)
+
+        return (Gamma-Gamma.T)/sqrt_A
+
+    def op_class_AIII(self,A,theta1,theta2,kind):
+        Gamma=np.zeros((8,8),dtype=float)
+        assert 0<=A<=1, "A should be within [0,1]"
+        sq_A=np.sqrt(1-A**2)
+        cos_theta1,sin_theta1=np.cos(theta1),np.sin(theta1)
+        cos_theta2,sin_theta2=np.cos(theta2),np.sin(theta2)
+        if kind == (1,1) or kind == (-1,-1):
+            Gamma[0,1]=Gamma[2,3]=kind[0]*A
+            Gamma[4,5]=Gamma[6,7]=-kind[0]*A
+            Gamma[0,4]=Gamma[1,5]=sq_A*cos_theta1
+            Gamma[0,5]=-sq_A*sin_theta1
+            Gamma[1,4]=sq_A*sin_theta1
+            Gamma[2,6]=Gamma[3,7]=sq_A*cos_theta2
+            Gamma[2,7]=-sq_A*sin_theta2
+            Gamma[3,6]=sq_A*sin_theta2
+        elif kind == (-1,1) or kind == (1,-1):
+            cos_theta1_theta2,sin_theta1_theta2=np.cos(theta1-theta2),np.sin(theta1-theta2)
+            Gamma[0,3]=kind[0]*A*cos_theta1_theta2
+            Gamma[5,6]=kind[0]*A
+            Gamma[1,2]=-kind[0]*A*cos_theta1_theta2
+            Gamma[4,7]=-kind[0]*A
+            Gamma[0,4]=Gamma[1,5]=sq_A*cos_theta1
+            Gamma[0,5]=-sq_A*sin_theta1
+            Gamma[1,4]=sq_A*sin_theta1
+            Gamma[0,2]=Gamma[1,3]=kind[0]*A*sin_theta1_theta2
+            Gamma[2,6]=Gamma[3,7]=sq_A*cos_theta2
+            Gamma[2,7]=-sq_A*sin_theta2
+            Gamma[3,6]=sq_A*sin_theta2
+        else:
+            raise ValueError(f'kind {kind} not defined')
+        return (Gamma-Gamma.T)
+        
+    def measure_class_A(self,alpha,beta,theta1,theta2,ix,orth=False):
+        ''' Majorana site index for ix'''
+        assert len(ix)==4, 'len of ix should be 4'
+        Psi=self.C_m_history[-1].copy()
+        proj=[
+            self.kraus([0,np.cos(theta1),-np.sin(theta1)]),
+            self.kraus([0,np.cos(theta2),-np.sin(theta2)]),
+            self.op_class_A(alpha,kind='+'),
+            self.op_class_A(alpha,kind='-'),
+            self.op_class_A(beta,kind='L'),
+            self.op_class_A(beta,kind='R')
+            # self.op_class_A(0,kind='L'),
+            # self.op_class_A(0,kind='R')
+            ]
+        # proj_err=[np.abs(np.diag(p@p)+1).max() for p in proj]
+        # print(proj_err)
+        # assert max(proj_err)<1e-10, "proj not normalized"
+
+        # ix_bar=np.array([i for i in np.arange(self.L*2) if i not in ix]) if not self.op else np.array([i for i in np.arange(self.L*4) if i not in ix])
+        ix_1_bar=np.array([i for i in np.arange(self.C_m[-1].shape[0]) if i not in ix[:2]])
+        ix_2_bar=np.array([i for i in np.arange(self.C_m[-1].shape[0]) if i not in ix[2:]])
+        ix_bar=np.array([i for i in np.arange(self.C_m[-1].shape[0]) if i not in ix])
+        Psi=_contraction(Psi,[proj[0]],ix[:2],ix_1_bar,combine=False,A_D=self.A_D if orth else None)
+        Psi=_contraction(Psi,[proj[1]],ix[2:],ix_2_bar,combine=False,A_D=self.A_D if orth else None)
+        Psi=_contraction(Psi,[proj[2]],ix,ix_bar,combine=False,A_D=self.A_D if orth else None)
+        Psi=_contraction(Psi,[proj[3]],ix,ix_bar,combine=False,A_D=self.A_D if orth else None)
+        Psi=_contraction(Psi,[proj[4]],ix,ix_bar,combine=False,A_D=self.A_D if orth else None)
+        Psi=_contraction(Psi,[proj[5]],ix,ix_bar,combine=False,A_D=self.A_D if orth else None)
+        assert np.abs(np.trace(Psi))<1e-5, "Not trace zero {:e}".format(np.trace(Psi))
+        if self.history:
+            self.C_m_history.append(Psi)
+            self.n_history.append([alpha,beta,theta1,theta2])
+            self.i_history.append(ix)
+            # self.MI_history.append(self.mutual_information_cross_ratio())
+        else:
+            self.C_m_history=[Psi]
+            self.n_history=[alpha,beta,theta1,theta2]
+            self.i_history=[ix]
+            # self.MI_history=[self.mutual_information_cross_ratio()]
+
+    def measure_class_AIII(self,A,theta1,theta2,kind,ix,orth=False):
+        ''' Majorana site index for ix'''
+        assert len(ix)==4, 'len of ix should be 4'
+        Psi=self.C_m_history[-1].copy()
+        ix_bar=np.array([i for i in np.arange(self.C_m[-1].shape[0]) if i not in ix])
+        proj=[self.op_class_AIII(A,theta1,theta2,kind)]
+        Psi=_contraction(Psi,[proj[0]],ix,ix_bar,combine=False,A_D=self.A_D if orth else None)
+        if self.history:
+            self.C_m_history.append(Psi)
+            self.n_history.append([A,theta1,theta2,kind])
+            self.i_history.append(ix)
+            # self.MI_history.append(self.mutual_information_cross_ratio())
+        else:
+            self.C_m_history=[Psi]
+            self.n_history=[A,theta1,theta2,kind]
+            self.i_history=[ix]
+            # self.MI_history=[self.mutual_information_cross_ratio()]
 
     def measure_all(self,a1,a2,b1,b2,even=True,theta_list=0,phi_list=0,Born=False):
-        proj_range=np.arange(self.L)*2 if even else np.arange(self.L)*2+1
+        proj_range=np.arange(self.L)*2 if even else np.arange(self.L)*2+1 # Majorana site index of left leg
         if Born:
             Gamma_list=self.C_m_history[-1][proj_range,(proj_range+1)%(2*self.L)]
             n_list=get_Born(a1,a2,b1,b2,Gamma_list,theta_list=theta_list,phi_list=phi_list,rng=self.rng)
@@ -108,8 +233,52 @@ class GTN:
             n_list=get_random(a1,a2,b1,b2,proj_range.shape[0],theta_list=theta_list,phi_list=phi_list,rng=self.rng)
         for i,n in zip(proj_range,n_list):
             self.measure([n], np.array([i,(i+1)%(2*self.L)]))
+    
+    def measure_all_class_A(self,A,B,Theta=np.pi,even=True,inverse=False,print_random=False,orth=False):
+        """if even : 4k+(0,1,2,3)
+        odd: 4k+(2,3,4,5)
+        uniformly sample alpha in [-A,A], beta in [-B,B] if inverse is False, otherwise uniformly sample alpha in [-1,1]/[-A,A], beta in [-1,1]/[-B,B][-B,B]
+        """
+        assert 0<A<1, "A should be (0,1)"
+        assert 0<B<1, "B should be (0,1)"
+        assert 0<=Theta<=np.pi, "Theta should be [0,pi]"
+        proj_range=np.arange(self.L//2)*4 if even else np.arange(self.L//2)*4+2 # Majorana site index of left leg
+        if not inverse:
+            alpha_list= self.rng.uniform(-A,A,size=proj_range.shape[0])
+            beta_list= self.rng.uniform(-B,B,size=proj_range.shape[0])
+        else:
+            alpha_list=self.rng.uniform(0.9-A,0.9,size=proj_range.shape[0])*np.sign(self.rng.uniform(-1,1,size=proj_range.shape[0]))
+            beta_list=self.rng.uniform(0.9-B,0.9,size=proj_range.shape[0])*np.sign(self.rng.uniform(-1,1,size=proj_range.shape[0]))
+        theta1_list=self.rng.uniform(-Theta,Theta,size=proj_range.shape[0])
+        theta2_list=self.rng.uniform(-Theta,Theta,size=proj_range.shape[0])
+        if print_random:
+            print( alpha_list,beta_list,theta1_list,theta2_list)
+
+        for i, alpha,beta,theta1,theta2 in zip(proj_range,alpha_list,beta_list,theta1_list,theta2_list):
+            self.measure_class_A(alpha,beta,theta1,theta2,np.array([i,(i+1)%(2*self.L),(i+2)%(2*self.L),(i+3)%(2*self.L)]),orth=orth)
+    
+    def measure_all_class_AIII(self,A_list,Born=True,class_A=False,even=True):
+        proj_range=np.arange(self.L//2)*4 if even else np.arange(self.L//2)*4+2 # Majorana site index of left leg
+        if isinstance(A_list, int) or isinstance(A_list, float):
+            A_list=np.array([A_list]*len(proj_range))
+        if self.history:
+            self.p_history.append(A_list)
+        else:
+            self.p_history=[A_list]
+        if Born:
+            for i, A in zip(proj_range,A_list):
+                legs=[i,(i+1)%(2*self.L),(i+2)%(2*self.L),(i+3)%(2*self.L)]
+                Gamma=self.C_m_history[-1][np.ix_(legs,legs)]
+                kind,theta1,theta2=get_Born_class_AIII(A=A,Gamma=Gamma,rng=self.rng,class_A=class_A,)
+                self.measure_class_AIII(A=A,theta1=theta1,theta2=theta2,kind=kind,ix=legs)
+        else:
+            pass
+        
+
+        
 
     def measure_all_sync(self,a1,a2,b1,b2,even=True,theta_list=0,phi_list=0,Born=False):
+        """sync means all operators apply the layer at the same time"""
         proj_range=np.arange(self.L)*2 if even else np.arange(self.L)*2+1
         proj_range_1=proj_range if not self.op else proj_range+2* self.L
         proj_range_2=(proj_range+1)%(2*self.L) if not self.op else (proj_range+1)%(2*self.L) + 2*self.L
@@ -186,6 +355,31 @@ class GTN:
                 self.measure(n_list,[i,j])
         else:
             pass
+    
+    def measure_list_tri_op_perfect_teleportation(self,site_list,p_list,Born=True,parity_dict=None):
+        '''site_list: [[i1,j1],[i2,j2],[i3,j3],...] measures [i1,j1], [i2,j2], [i3,j3] respectively
+        p_list: [p1,p2,p3,...] measures with prob p1,p2,p3, respectively
+        outcome:  {(i,j): parity}
+
+        '''
+        if Born:
+            assert len(site_list)== len(p_list), f'site_list ({len(site_list)}) is not equal to p_list ({len(p_list)})'
+            for (i,j),p in zip(site_list,p_list):
+                Gamma=self.C_m_history[-1][[i],[j]]
+                n_list=get_Born_tri_op(p,Gamma,rng=self.rng)
+                self.measure(n_list,[i,j])
+                if n_list[0] == [-1,0,0] or [1,0,0]:
+                    # P_+ or P_-
+                    other_leg=find_other_leg(parity_dict, (i,j))
+                    if len(other_leg)==1:
+                        self.measure([0,-1,0], [other_leg])
+                    update_dictionary(parity_dict,(i,j),p=-n_list[0][0])
+                else:
+                    # unitary
+                    update_dictionary(parity_dict,(i,j),p=None)
+        else:
+            pass
+
 
     def mutual_information_cross_ratio(self,ratio=[1,4]):
         
@@ -254,6 +448,23 @@ def get_Born_tri_op(p,Gamma,rng=None):
     n1= (sign<p*(1+Gamma)/2)*(-1)+(sign>p*(1+Gamma)/2+1-p)
     n2,n3=get_inplane(n1, num,rng=rng)
     return np.c_[n1,n2,n3]
+
+def get_Born_class_AIII(A,Gamma,class_A=False,rng=None):
+    rng=np.random.default_rng(rng)
+    prob={(s1,s2): Gamma[0,1]*(-s1-s2)/8*A + Gamma[0,3]*(-s1+s2)/8*A + Gamma[1,2]*(s1-s2)/8*A + Gamma[2,3]*(-s1-s2)/8*A - (-Gamma[0,1]*Gamma[2,3]+Gamma[0,2]*Gamma[1,3]-Gamma[0,3]*Gamma[1,2])*s1*s2*A**2/4+1/4 for s1 in [-1,1] for s2 in [-1,1]}
+    for key,val in prob.items():
+        # assert val>-1e-9, f'{key} < 0 = {val}, {prob}'
+        # assert val<1+1e-9, f'{key} > 1 = {val}'
+        prob[key]=np.clip(val,0.,1.)
+    # print(prob)
+    if not class_A:
+        kind=rng.choice(list(prob.keys()),p=list(prob.values()))
+    else:
+        post_selected_outcome=[(-1,1),(1,-1)]
+        norm= sum(prob[i] for i in post_selected_outcome)
+        kind=rng.choice(post_selected_outcome,p=[prob[i]/norm for i in post_selected_outcome])
+    theta=rng.uniform(-np.pi,np.pi,size=2)
+    return tuple(kind), theta[0],theta[1]
 
 def get_random(a1,a2,b1,b2,num,rng=None,theta_list=0,phi_list=0):
     '''
@@ -379,6 +590,7 @@ def solve(coef,u):
 
 
 def rescale(x,y0,y1,x0=0,x1=1):
+    """rescale a range [x0,x1] to [y0,y1] using linear map"""
     return (y1-y0)/(x1-x0)*(x-x0)+y0
 
 def cross_ratio(x,L):
@@ -393,14 +605,18 @@ def cord(x,L):
     return L/np.pi*np.sin(np.pi/L*np.abs(x))
 
 # @jit(float64[:,:](float64[:,:],float64[:,:],int64[:]),nopython=True,fastmath=True)
-def _contraction(m,proj_list,ix,ix_bar):
+def _contraction(m,proj_list,ix,ix_bar,combine=True,A_D=None):
     ix,ix_bar=list(ix),list(ix_bar)
 
-    proj=np.zeros((4*len(proj_list),4*len(proj_list)))
-    # change index from (in_1, in_2, out_1, out_2) (in_3, in_4, out_3, out_4)
-    # to (in_1 , in_2, in_3, in_4, out_1, out_2, out_3, out_4)
-    for i,p in enumerate(proj_list):
-        proj[np.ix_([2*i,2*i+1,2*i+2*len(proj_list),2*i+2*len(proj_list)+1],[2*i,2*i+1,2*i+2*len(proj_list),2*i+2*len(proj_list)+1])]=p
+    if combine:
+        proj=np.zeros((4*len(proj_list),4*len(proj_list)))
+        # change index from (in_1, in_2, out_1, out_2) (in_3, in_4, out_3, out_4)
+        # to (in_1 , in_2, in_3, in_4, out_1, out_2, out_3, out_4)
+        for i,p in enumerate(proj_list):
+            proj[np.ix_([2*i,2*i+1,2*i+2*len(proj_list),2*i+2*len(proj_list)+1],[2*i,2*i+1,2*i+2*len(proj_list),2*i+2*len(proj_list)+1])]=p
+    else:
+        assert len(proj_list)==1, 'len of proj_list is not 1'
+        proj=proj_list[0]
 
     # if m.shape[0]==0:
     #     return proj
@@ -441,6 +657,13 @@ def _contraction(m,proj_list,ix,ix_bar):
     Psi=Psi_mat
 
     Psi=(Psi-Psi.T)/2
+
+    if A_D is not None:
+        # orthogonalize Psi, see App. B2 in PhysRevB.106.134206
+        if np.abs(np.diag(Psi@Psi)+1).max()>1e-10:
+            O,_,_=block_diagonalize(Psi)
+            Psi=O.T@A_D@O
+    Psi=(Psi-Psi.T)/2
     return (Psi)
 
 
@@ -449,3 +672,70 @@ def interpolation(x1,x2,l0,h0,L,k=1):
     h=h0/2
     l=l0-h0/2
     return (h-l)/2*(np.tanh((x-x1)*k)+1)+l-(h-l)/2*(np.tanh((x-x2)*k)+1)+h
+
+def block_diagonalize(A,thres=1e-10):
+    '''A is an anti symmetry matrix for covariance matrix
+    block diagonalize is to find a real othorgonal matrix such that OAO^T=A_D, where A_D=\oplus a_k \omega, where \omega = [0,1;-1,0]
+
+    See : arxiv:0902.1502 App B for more details
+    '''
+    assert np.abs(A.imag).max()<1e-10, f'A is not a real matrix {np.abs(A.imag).max()}'
+    A=A.real
+    assert np.abs(A+A.T).max()<1e-10, f'A is not antisymmetric'
+
+    val,vec=np.linalg.eigh(A/1j)
+    val_arg=val.argsort()
+    val=val[val_arg[:A.shape[0]//2]]
+    vec=vec[:,val_arg[:A.shape[0]//2]]
+    perm_list=permutations(range(vec.shape[1]))
+    for perm in perm_list:
+        vec=vec[:,perm]
+        diag_element=np.array([vec[2*x,x] for x in range(vec.shape[1])])
+        if np.all(diag_element !=0):
+            break
+
+    # diag_element=np.array([vec[2*x,x] for x in range(vec.shape[1])])
+    phase_factor=diag_element.conj()/np.abs(diag_element)
+    # phase_factor[np.isinf(phase_factor)|np.isnan(phase_factor)]=1
+    vec=phase_factor.reshape((1,-1))*vec
+    vec_conj=vec.conj()
+    U=np.zeros(A.shape,dtype=complex)
+    U[:,1::2]=vec_conj
+    U[:,::2]=vec
+    G=lambda l:np.kron(np.eye(l),np.array([[1,1],[-1j,1j]])/np.sqrt(2))
+    O=G(A.shape[0]//2)@U.T.conj()
+    assert np.abs(O.imag).max()<1e-10, f'O is not a real matrix {np.abs(O.imag).max()}'
+    O=O.real
+    A_D=O@A@O.T
+    return O,U,A_D
+
+def fidelity(A,B):
+    assert A.shape[0]==B.shape[0], f'A {A.shape[0]} has different dim than B{B.shape[0]}'
+    L=A.shape[0]//2
+    identity=np.eye(A.shape[0])
+    id_AB=(identity-A@B)
+    if np.linalg.det(id_AB)!=0:
+        G_tilde=(A+B)@np.linalg.inv(id_AB)
+        # G_tilde=np.linalg.solve((A+B).T,id_AB.T).T    # Right divide
+    else:
+        G_tilde=(A+B)@np.linalg.inv(id_AB+1e-10*identity).real
+        # G_tilde=np.linalg.solve((A+B).T,id_AB.T+1e-8j*np.eye(A.shape[0])).T.real    # Right divide
+
+    sqrt_G_tilde=scipy.linalg.funm(identity+G_tilde@G_tilde,np.sqrt)
+    return 2**(-L/2)*np.linalg.det(identity-A@B)**(1/4)*np.linalg.det(identity+sqrt_G_tilde)**(1/4)
+
+    
+def update_dictionary(parity_dict,ij,p):
+    i,j=ij
+    remove (i,anything) and (anything,j) in parity_dict
+    if p is not None:
+        assert abs(p)==1 , f'p should be 1 or -1 {p}'
+        praity_dict[(i,j)]=p
+
+def find_other_leg(parity_dict,ij):
+    i,j=ij
+    other_leg_list=[]
+    for x in parity_dict.keys():
+        if i in x or j in x:
+            other_leg_list.append(x)
+    return other_leg_list

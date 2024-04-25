@@ -2,6 +2,7 @@
 import numpy as np
 import numpy.linalg as nla
 import scipy.linalg as la
+from scipy.sparse import bsr_array
 from copy import copy
 from itertools import permutations
 
@@ -13,6 +14,7 @@ class GTN:
         self.random_init=random_init
         self.rng=np.random.default_rng(seed)
         self.C_m=self.correlation_matrix()
+        self.Gamma_like=np.zeros_like(self.C_m)
         self.C_m_history=[self.C_m]
         self.history=history
         self.n_history=[]
@@ -21,6 +23,7 @@ class GTN:
         self.p_history=[]
         self.c=c
         self.pbc=pbc
+        self.full_ix=set(range(self.C_m[-1].shape[0]))
 
     
     def correlation_matrix(self):
@@ -59,7 +62,7 @@ class GTN:
         proj=[self.kraus(n) for n in n_list]
         # ix_bar=np.array([i for i in np.arange(self.L*2) if i not in ix]) if not self.op else np.array([i for i in np.arange(self.L*4) if i not in ix])
         ix_bar=np.array([i for i in np.arange(self.C_m[-1].shape[0]) if i not in ix])
-        Psi=_contraction(m,proj,ix,ix_bar)
+        Psi=P_contraction(m,proj,ix,ix_bar)
         assert np.abs(np.trace(Psi))<1e-5, "Not trace zero {:e}".format(np.trace(Psi))
         if self.history:
             self.C_m_history.append(Psi)
@@ -167,60 +170,60 @@ class GTN:
             raise ValueError(f'kind {kind} not defined')
         return (Gamma-Gamma.T)
         
-    def measure_class_A(self,alpha,beta,theta1,theta2,ix,orth=False):
+    # def measure_class_A(self,alpha,beta,theta1,theta2,ix,orth=False):
+    #     ''' Majorana site index for ix'''
+    #     assert len(ix)==4, 'len of ix should be 4'
+    #     Psi=self.C_m_history[-1].copy()
+    #     proj=[
+    #         self.kraus([0,np.cos(theta1),-np.sin(theta1)]),
+    #         self.kraus([0,np.cos(theta2),-np.sin(theta2)]),
+    #         self.op_class_A(alpha,kind='+'),
+    #         self.op_class_A(alpha,kind='-'),
+    #         self.op_class_A(beta,kind='L'),
+    #         self.op_class_A(beta,kind='R')
+    #         # self.op_class_A(0,kind='L'),
+    #         # self.op_class_A(0,kind='R')
+    #         ]
+    #     # proj_err=[np.abs(np.diag(p@p)+1).max() for p in proj]
+    #     # print(proj_err)
+    #     # assert max(proj_err)<1e-10, "proj not normalized"
+
+    #     # ix_bar=np.array([i for i in np.arange(self.L*2) if i not in ix]) if not self.op else np.array([i for i in np.arange(self.L*4) if i not in ix])
+    #     ix_1_bar=np.array([i for i in np.arange(self.C_m[-1].shape[0]) if i not in ix[:2]])
+    #     ix_2_bar=np.array([i for i in np.arange(self.C_m[-1].shape[0]) if i not in ix[2:]])
+    #     ix_bar=np.array([i for i in np.arange(self.C_m[-1].shape[0]) if i not in ix])
+    #     Psi=P_contraction(Psi,[proj[0]],ix[:2],ix_1_bar,combine=False,A_D=self.A_D if orth else None)
+    #     Psi=P_contraction(Psi,[proj[1]],ix[2:],ix_2_bar,combine=False,A_D=self.A_D if orth else None)
+    #     Psi=P_contraction(Psi,[proj[2]],ix,ix_bar,combine=False,A_D=self.A_D if orth else None)
+    #     Psi=P_contraction(Psi,[proj[3]],ix,ix_bar,combine=False,A_D=self.A_D if orth else None)
+    #     Psi=P_contraction(Psi,[proj[4]],ix,ix_bar,combine=False,A_D=self.A_D if orth else None)
+    #     Psi=P_contraction(Psi,[proj[5]],ix,ix_bar,combine=False,A_D=self.A_D if orth else None)
+    #     assert np.abs(np.trace(Psi))<1e-5, "Not trace zero {:e}".format(np.trace(Psi))
+    #     if self.history:
+    #         self.C_m_history.append(Psi)
+    #         self.n_history.append([alpha,beta,theta1,theta2])
+    #         self.i_history.append(ix)
+    #         # self.MI_history.append(self.mutual_information_cross_ratio())
+    #     else:
+    #         self.C_m_history=[Psi]
+    #         self.n_history=[alpha,beta,theta1,theta2]
+    #         self.i_history=[ix]
+    #         # self.MI_history=[self.mutual_information_cross_ratio()]
+
+    def measure_class_AIII(self,A,theta1,theta2,kind,ix,):
         ''' Majorana site index for ix'''
         assert len(ix)==4, 'len of ix should be 4'
-        Psi=self.C_m_history[-1].copy()
-        proj=[
-            self.kraus([0,np.cos(theta1),-np.sin(theta1)]),
-            self.kraus([0,np.cos(theta2),-np.sin(theta2)]),
-            self.op_class_A(alpha,kind='+'),
-            self.op_class_A(alpha,kind='-'),
-            self.op_class_A(beta,kind='L'),
-            self.op_class_A(beta,kind='R')
-            # self.op_class_A(0,kind='L'),
-            # self.op_class_A(0,kind='R')
-            ]
-        # proj_err=[np.abs(np.diag(p@p)+1).max() for p in proj]
-        # print(proj_err)
-        # assert max(proj_err)<1e-10, "proj not normalized"
-
-        # ix_bar=np.array([i for i in np.arange(self.L*2) if i not in ix]) if not self.op else np.array([i for i in np.arange(self.L*4) if i not in ix])
-        ix_1_bar=np.array([i for i in np.arange(self.C_m[-1].shape[0]) if i not in ix[:2]])
-        ix_2_bar=np.array([i for i in np.arange(self.C_m[-1].shape[0]) if i not in ix[2:]])
-        ix_bar=np.array([i for i in np.arange(self.C_m[-1].shape[0]) if i not in ix])
-        Psi=_contraction(Psi,[proj[0]],ix[:2],ix_1_bar,combine=False,A_D=self.A_D if orth else None)
-        Psi=_contraction(Psi,[proj[1]],ix[2:],ix_2_bar,combine=False,A_D=self.A_D if orth else None)
-        Psi=_contraction(Psi,[proj[2]],ix,ix_bar,combine=False,A_D=self.A_D if orth else None)
-        Psi=_contraction(Psi,[proj[3]],ix,ix_bar,combine=False,A_D=self.A_D if orth else None)
-        Psi=_contraction(Psi,[proj[4]],ix,ix_bar,combine=False,A_D=self.A_D if orth else None)
-        Psi=_contraction(Psi,[proj[5]],ix,ix_bar,combine=False,A_D=self.A_D if orth else None)
-        assert np.abs(np.trace(Psi))<1e-5, "Not trace zero {:e}".format(np.trace(Psi))
+        Psi=self.C_m_history[-1]
+        ix_bar=np.array(list(self.full_ix-set(ix)))
+        proj=self.op_class_AIII(A,theta1,theta2,kind)
+        P_contraction_2(Psi,proj,ix,ix_bar,self.Gamma_like,reset_Gamma_like=False)
         if self.history:
-            self.C_m_history.append(Psi)
-            self.n_history.append([alpha,beta,theta1,theta2])
-            self.i_history.append(ix)
-            # self.MI_history.append(self.mutual_information_cross_ratio())
-        else:
-            self.C_m_history=[Psi]
-            self.n_history=[alpha,beta,theta1,theta2]
-            self.i_history=[ix]
-            # self.MI_history=[self.mutual_information_cross_ratio()]
-
-    def measure_class_AIII(self,A,theta1,theta2,kind,ix,orth=False):
-        ''' Majorana site index for ix'''
-        assert len(ix)==4, 'len of ix should be 4'
-        Psi=self.C_m_history[-1].copy()
-        ix_bar=np.array([i for i in np.arange(self.C_m[-1].shape[0]) if i not in ix])
-        proj=[self.op_class_AIII(A,theta1,theta2,kind)]
-        Psi=_contraction(Psi,[proj[0]],ix,ix_bar,combine=False,A_D=self.A_D if orth else None)
-        if self.history:
-            self.C_m_history.append(Psi)
+            self.C_m_history.append(Psi.copy())
             self.n_history.append([A,theta1,theta2,kind])
             self.i_history.append(ix)
             # self.MI_history.append(self.mutual_information_cross_ratio())
         else:
-            self.C_m_history=[Psi]
+            # self.C_m_history=[Psi]
             self.n_history=[A,theta1,theta2,kind]
             self.i_history=[ix]
             # self.MI_history=[self.mutual_information_cross_ratio()]
@@ -235,30 +238,30 @@ class GTN:
         for i,n in zip(proj_range,n_list):
             self.measure([n], np.array([i,(i+1)%(2*self.L)]))
     
-    def measure_all_class_A(self,A,B,Theta=np.pi,even=True,inverse=False,print_random=False,orth=False):
-        """if even : 4k+(0,1,2,3)
-        odd: 4k+(2,3,4,5)
-        uniformly sample alpha in [-A,A], beta in [-B,B] if inverse is False, otherwise uniformly sample alpha in [-1,1]/[-A,A], beta in [-1,1]/[-B,B][-B,B]
-        """
-        assert 0<A<1, "A should be (0,1)"
-        assert 0<B<1, "B should be (0,1)"
-        assert 0<=Theta<=np.pi, "Theta should be [0,pi]"
-        proj_range=np.arange(self.L//2)*4 if even else np.arange(self.L//2)*4+2 # Majorana site index of left leg
-        if not inverse:
-            alpha_list= self.rng.uniform(-A,A,size=proj_range.shape[0])
-            beta_list= self.rng.uniform(-B,B,size=proj_range.shape[0])
-        else:
-            alpha_list=self.rng.uniform(0.9-A,0.9,size=proj_range.shape[0])*np.sign(self.rng.uniform(-1,1,size=proj_range.shape[0]))
-            beta_list=self.rng.uniform(0.9-B,0.9,size=proj_range.shape[0])*np.sign(self.rng.uniform(-1,1,size=proj_range.shape[0]))
-        theta1_list=self.rng.uniform(-Theta,Theta,size=proj_range.shape[0])
-        theta2_list=self.rng.uniform(-Theta,Theta,size=proj_range.shape[0])
-        if print_random:
-            print( alpha_list,beta_list,theta1_list,theta2_list)
+    # def measure_all_class_A(self,A,B,Theta=np.pi,even=True,inverse=False,print_random=False,orth=False):
+    #     """if even : 4k+(0,1,2,3)
+    #     odd: 4k+(2,3,4,5)
+    #     uniformly sample alpha in [-A,A], beta in [-B,B] if inverse is False, otherwise uniformly sample alpha in [-1,1]/[-A,A], beta in [-1,1]/[-B,B][-B,B]
+    #     """
+    #     assert 0<A<1, "A should be (0,1)"
+    #     assert 0<B<1, "B should be (0,1)"
+    #     assert 0<=Theta<=np.pi, "Theta should be [0,pi]"
+    #     proj_range=np.arange(self.L//2)*4 if even else np.arange(self.L//2)*4+2 # Majorana site index of left leg
+    #     if not inverse:
+    #         alpha_list= self.rng.uniform(-A,A,size=proj_range.shape[0])
+    #         beta_list= self.rng.uniform(-B,B,size=proj_range.shape[0])
+    #     else:
+    #         alpha_list=self.rng.uniform(0.9-A,0.9,size=proj_range.shape[0])*np.sign(self.rng.uniform(-1,1,size=proj_range.shape[0]))
+    #         beta_list=self.rng.uniform(0.9-B,0.9,size=proj_range.shape[0])*np.sign(self.rng.uniform(-1,1,size=proj_range.shape[0]))
+    #     theta1_list=self.rng.uniform(-Theta,Theta,size=proj_range.shape[0])
+    #     theta2_list=self.rng.uniform(-Theta,Theta,size=proj_range.shape[0])
+    #     if print_random:
+    #         print( alpha_list,beta_list,theta1_list,theta2_list)
 
-        for i, alpha,beta,theta1,theta2 in zip(proj_range,alpha_list,beta_list,theta1_list,theta2_list):
-            self.measure_class_A(alpha,beta,theta1,theta2,np.array([i,(i+1)%(2*self.L),(i+2)%(2*self.L),(i+3)%(2*self.L)]),orth=orth)
+    #     for i, alpha,beta,theta1,theta2 in zip(proj_range,alpha_list,beta_list,theta1_list,theta2_list):
+    #         self.measure_class_A(alpha,beta,theta1,theta2,np.array([i,(i+1)%(2*self.L),(i+2)%(2*self.L),(i+3)%(2*self.L)]),orth=orth)
     
-    def measure_all_class_AIII(self,A_list,Born=True,class_A=False,even=True,orth=False):
+    def measure_all_class_AIII(self,A_list,Born=True,class_A=False,even=True,):
         proj_range=np.arange(self.L//2)*4 if even else np.arange(self.L//2)*4+2 # Majorana site index of left leg
         if isinstance(A_list, int) or isinstance(A_list, float):
             A_list=np.array([A_list]*len(proj_range))
@@ -271,7 +274,7 @@ class GTN:
                 legs=[i,(i+1)%(2*self.L),(i+2)%(2*self.L),(i+3)%(2*self.L)]
                 Gamma=self.C_m_history[-1][np.ix_(legs,legs)]
                 kind,theta1,theta2=get_Born_class_AIII(A=A,Gamma=Gamma,rng=self.rng,class_A=class_A,)
-                self.measure_class_AIII(A=A,theta1=theta1,theta2=theta2,kind=kind,ix=legs,orth=orth)
+                self.measure_class_AIII(A=A,theta1=theta1,theta2=theta2,kind=kind,ix=legs)
         else:
             pass
         
@@ -456,7 +459,8 @@ def get_Born_class_AIII(A,Gamma,class_A=False,rng=None):
     for key,val in prob.items():
         assert val>-1e-9, f'{key} < 0 = {val}, {prob}'
         assert val<1+1e-9, f'{key} > 1 = {val}'
-        prob[key]=np.clip(val,0.,1.)
+        if prob[key]>1 or prob[key]<0:
+            prob[key]=np.clip(val,0.,1.)
     # print(prob)
     if not class_A:
         kind=rng.choice(list(prob.keys()),p=list(prob.values()))
@@ -606,7 +610,7 @@ def cord(x,L):
     return L/np.pi*np.sin(np.pi/L*np.abs(x))
 
 # @jit(float64[:,:](float64[:,:],float64[:,:],int64[:]),nopython=True,fastmath=True)
-def _contraction(m,proj_list,ix,ix_bar,combine=True,A_D=None):
+def P_contraction(m,proj_list,ix,ix_bar,combine=True):
     ix,ix_bar=list(ix),list(ix_bar)
 
     if combine:
@@ -659,13 +663,52 @@ def _contraction(m,proj_list,ix,ix_bar,combine=True,A_D=None):
 
     Psi=(Psi-Psi.T)/2
 
-    if A_D is not None:
-        # orthogonalize Psi, see App. B2 in PhysRevB.106.134206
-        if np.abs(np.diag(Psi@Psi)+1).max()>1e-10:
-
-            Psi=purify(Psi)
-            Psi=(Psi-Psi.T)/2
+    # orthogonalize Psi, see App. B2 in PhysRevB.106.134206
+    if np.abs(np.diag(Psi@Psi)+1).max()>1e-10:
+        Psi=purify(Psi)
+        Psi=(Psi-Psi.T)/2
     return (Psi)
+
+def P_contraction_2(Gamma,Upsilon,ix,ix_bar,Gamma_like=None,reset_Gamma_like=True):
+    """ same analytical expression for contraction as _contraction(), differences:
+    1. assume intput and output tensor have the same shape, thus, it should be Gamma(L,R) -- Upsilon (L,R), where Gamma_R = Upsilon_L =Upsilon_R, such that in-place operator is applied here.
+    2. manually compute the inverse of mat2 before
+    Here, Gamma is m, and proj is Upsilon
+    Assume Upsilon = [A,B;C,D], the logic is to first compute C= (1+ Gamma_RR @ Upsilon_LL)^{-1}, (where then B=-C.T) 
+    then A= Upsilon_LL @C, D= Gamma_RR@ C.T
+    ---
+    reset_Gamma_like: in usual case, because each application of the gate will be like the brick layer, therefore, ix_bar will overwrite the previous. However, for the staircase pattern, one should reset it. 
+    """
+    Gamma_RR=Gamma[np.ix_(ix,ix)]
+    Gamma_LR=Gamma[np.ix_(ix_bar,ix)]
+    Upsilon_LL=Upsilon[:len(ix),:len(ix)]
+    Upsilon_RR=Upsilon[len(ix):,len(ix):]
+    Upsilon_RL=Upsilon[len(ix):,:len(ix)]
+    eye=np.eye(len(ix))
+    try: 
+        C=nla.inv(Gamma_RR@Upsilon_LL+eye)
+    except:
+        raise ValueError("the contraction will lead to a vanishing state")
+    A=Upsilon_LL@C
+    D=Gamma_RR@C.T
+    tmp=Gamma_LR@A@Gamma_LR.T
+    if Gamma_like is None:
+        Gamma_like=np.zeros_like(Gamma)
+    if reset_Gamma_like:
+        Gamma_like[:,:]=0
+    Gamma_like[np.ix_(ix_bar,ix_bar)]=tmp
+    Gamma+=Gamma_like
+    Gamma[np.ix_(ix,ix_bar)]=Upsilon_RL@C@Gamma_LR.T
+    Gamma[np.ix_(ix,ix)]=Upsilon_RR+Upsilon_RL@D@Upsilon_RL.T
+    Gamma[np.ix_(ix_bar,ix)]=-Gamma[np.ix_(ix,ix_bar)].T
+    # why is it neccessary?
+    # Gamma-=Gamma.T
+    # Gamma/=2
+
+    if np.abs(np.einsum(Gamma,[0,1],Gamma,[1,0],[0])+1).max()>1e-10:
+        Gamma[:,:]=purify(Gamma)
+        Gamma-=Gamma.T
+        Gamma/=2
 
 
 def interpolation(x1,x2,l0,h0,L,k=1):
@@ -749,3 +792,4 @@ def find_other_leg(parity_dict,ij):
         if i in x or j in x:
             other_leg_list.append(x)
     return other_leg_list
+# %%

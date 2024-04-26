@@ -277,6 +277,44 @@ class GTN:
                 self.measure_class_AIII(A=A,theta1=theta1,theta2=theta2,kind=kind,ix=legs)
         else:
             pass
+    
+    def measure_all_class_AIII_r(self,A_list,r,Born=True,class_A=False,intraleg=True,):
+        site_A_left=np.arange(self.L//2)*4
+        site_B_left=np.arange(self.L//2)*4+2
+        # proj_range=np.arange(self.L//2)*4
+        #  if even else np.arange(self.L//2)*4+2 # Majorana site index of left leg
+        if isinstance(A_list, int) or isinstance(A_list, float):
+            A_list=np.array([A_list]*(self.L//2))
+        if self.history:
+            self.p_history.append(A_list)
+        else:
+            self.p_history=[A_list]
+        if Born:
+            for idx in range(self.L//2):
+                r0=int(np.round(self.rng.uniform(r-1/2,r+1/2)))
+                if intraleg:
+                    legs=[site_B_left[idx],(site_B_left[idx]+1)%(2*self.L),site_B_left[(idx+r0)%(self.L//2)],(site_B_left[(idx+r0)%(self.L//2)]+1)%(2*self.L)]
+                else:
+                    legs=[site_B_left[idx],(site_B_left[idx]+1)%(2*self.L),site_A_left[(idx+r0)%(self.L//2)],(site_A_left[(idx+r0)%(self.L//2)]+1)%(2*self.L)]
+
+                if r0 ==0 and intraleg:
+                    # tackle onsite unitary
+                    pass
+                else:
+                    Gamma=self.C_m_history[-1][np.ix_(legs,legs)]
+                    kind,theta1,theta2=get_Born_class_AIII(A=A_list[idx],Gamma=Gamma,rng=self.rng,class_A=class_A,)
+                    self.measure_class_AIII(A=A_list[idx],theta1=theta1,theta2=theta2,kind=kind,ix=legs)
+
+
+
+            # for i, A in zip(proj_range,A_list):
+            #     # legs=[i,(i+1)%(2*self.L),(i+2)%(2*self.L),(i+3)%(2*self.L)]
+            #     legs=[i,(i+1)%(2*self.L),(i+2*r0)%(2*self.L),(i+2*r0+1)%(2*self.L)]
+            #     Gamma=self.C_m_history[-1][np.ix_(legs,legs)]
+            #     kind,theta1,theta2=get_Born_class_AIII(A=A,Gamma=Gamma,rng=self.rng,class_A=class_A,)
+            #     self.measure_class_AIII(A=A,theta1=theta1,theta2=theta2,kind=kind,ix=legs)
+        else:
+            pass
         
 
         
@@ -385,14 +423,17 @@ class GTN:
             pass
 
 
-    def mutual_information_cross_ratio(self,ratio=[1,4]):
+    def mutual_information_cross_ratio(self,ratio=[1,4],unitcell=1):
+        """unitcell=1: shift each fermionic site
+        unitcell=2: shift "2-atom" unit cell
+        """
         
         x=np.array([0,self.L//ratio[1]*ratio[0],self.L//2,self.L//2+self.L//ratio[1]*ratio[0]])
         # x=np.array([0,self.L//8,self.L//2,self.L//8*5])
         MI=[]
         subA=np.arange(x[0],x[1])
         subB=np.arange(x[2],x[3])
-        for shift in np.arange(0,self.L//2):
+        for shift in np.arange(0,self.L//2,unitcell):
             MI.append(self.mutual_information_m((subA+shift)%self.L, (subB+shift)%self.L))
         return np.mean(MI)
         # return MI
@@ -420,6 +461,14 @@ class GTN:
         val=np.sort(val)
         val=(1-val)/2+1e-18j   #\lambda=(1-\xi)/2
         return np.real(-np.sum(val*np.log(val))-np.sum((1-val)*np.log(1-val)))/2
+
+    def von_Neumann_entropy_m_self_average(self,Gamma=None,unitcell=1):
+        subregion=np.arange(0,self.L//2)
+        EE=[]
+        for shift in np.arange(0,self.L//2,unitcell):
+            EE.append(self.von_Neumann_entropy_m((subregion+shift)%self.L,Gamma))
+        return np.mean(EE)
+
 
     def c_subregion_m(self,subregion,Gamma=None):
         if Gamma is None:

@@ -65,23 +65,25 @@ class GTN:
             Gamma[i,j]=n
             Gamma[j,i]=-n
 
-    def measure(self,n_list,ix):
+    def measure(self,n,ix):
         ''' Majorana site index for ix'''
 
-        m=self.C_m_history[-1].copy()
-        proj=[self.kraus(n) for n in n_list]
+        Psi=self.C_m_history[-1]
+        proj=self.kraus(n)
         # ix_bar=np.array([i for i in np.arange(self.L*2) if i not in ix]) if not self.op else np.array([i for i in np.arange(self.L*4) if i not in ix])
         ix_bar=np.array([i for i in np.arange(self.C_m[-1].shape[0]) if i not in ix])
-        Psi=P_contraction(m,proj,ix,ix_bar)
-        assert np.abs(np.trace(Psi))<1e-5, "Not trace zero {:e}".format(np.trace(Psi))
+        # Psi=P_contraction(m,proj,ix,ix_bar)
+        P_contraction_2(Psi,proj,ix,ix_bar,self.Gamma_like,reset_Gamma_like=False)
+
+        # assert np.abs(np.trace(Psi))<1e-5, "Not trace zero {:e}".format(np.trace(Psi))
         if self.history:
             self.C_m_history.append(Psi)
-            self.n_history.append(n_list)
+            self.n_history.append(n)
             self.i_history.append(ix)
             # self.MI_history.append(self.mutual_information_cross_ratio())
         else:
             self.C_m_history=[Psi]
-            self.n_history=[n_list]
+            self.n_history=[n]
             self.i_history=[ix]
             # self.MI_history=[self.mutual_information_cross_ratio()]
 
@@ -284,10 +286,10 @@ class GTN:
                 n_list=get_Born_tri_op(p,Gamma,rng=self.rng)
                 if not self.pbc and not even and i==proj_range_1[-1]:
                     continue
-                self.measure(n_list,[i,j])
+                self.measure(n_list[0],[i,j])
         else:
             n_list=get_random_tri_op(p_list,proj_range.shape[0],rng=self.rng)
-            self.measure(n_list,np.c_[proj_range_1,proj_range_2].flatten())
+            self.measure(n_list[0],np.c_[proj_range_1,proj_range_2].flatten())
 
     def measure_list_tri_op(self,site_list,p_list,Born=True,):
         '''site_list: [[i1,j1],[i2,j2],[i3,j3],...] measures [i1,j1], [i2,j2], [i3,j3] respectively

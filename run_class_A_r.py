@@ -6,7 +6,7 @@ import numpy as np
 from tqdm import tqdm
 from mpi4py.futures import MPIPoolExecutor
 
-
+"""this is an extension of using |i-j|=r"""
 def run_single_class_AIII(inputs):
     L,seed,vartheta,r,t,Born=inputs
     A=np.cos(vartheta)
@@ -22,8 +22,12 @@ def run_single_class_AIII(inputs):
 
 def wrapper(inputs):
     # a1,a2,b1,b2,es,L,t,Born=inputs
-    MI,EE=run_single_class_AIII(inputs)
-    return MI,EE
+    try:
+        MI,EE=run_single_class_AIII(inputs)
+        return MI,EE
+    except:
+        return np.nan,np.nan
+        
 
 if __name__=="__main__":
     parser=argparse.ArgumentParser()

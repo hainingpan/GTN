@@ -289,7 +289,13 @@ class GTN:
                 self.measure(n_list[0],[i,j])
         else:
             n_list=get_random_tri_op(p_list,proj_range.shape[0],rng=self.rng)
-            self.measure(n_list[0],np.c_[proj_range_1,proj_range_2].flatten())
+            for i,j,n in zip(proj_range_1,proj_range_2,n_list):
+                try:
+                    self.measure(n,[i,j])
+                except:
+                    n[0]=-n[0]
+                    # This is a workaround to let it run, however, in forced measurement, the strong projection is problematic, as it can sometimes vanish the state
+                    self.measure(n,[i,j])
 
     def measure_list_tri_op(self,site_list,p_list,Born=True,):
         '''site_list: [[i1,j1],[i2,j2],[i3,j3],...] measures [i1,j1], [i2,j2], [i3,j3] respectively
@@ -416,7 +422,6 @@ def get_Born_class_AIII(A,Gamma,class_A=False,rng=None):
         assert val<1+1e-9, f'{key} > 1 = {val}'
         if prob[key]>1 or prob[key]<0:
             prob[key]=np.clip(val,0.,1.)
-    # print(prob)
     if not class_A:
         kind=rng.choice(list(prob.keys()),p=list(prob.values()))
     else:

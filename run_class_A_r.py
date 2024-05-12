@@ -12,7 +12,9 @@ def run_single_class_AIII(inputs):
     A=np.cos(vartheta)
     gtn=GTN(L=L,seed=seed,history=False,op=False,random_init=False)
     sites_flip=np.sort(gtn.rng.choice(np.arange(gtn.L),size=gtn.L//2,replace=False))
-    gtn.measure([[1,0,0]]*(gtn.L//2),np.sort(np.r_[2*sites_flip,2*sites_flip+1]))
+    # gtn.measure([[1,0,0]]*(gtn.L//2),np.sort(np.r_[2*sites_flip,2*sites_flip+1]))
+    gtn.C_m[sites_flip*2,sites_flip*2+1]=-1
+    gtn.C_m[sites_flip*2+1,sites_flip*2]=1
     for i in range(t):
         gtn.measure_all_class_AIII_r(A_list=A,r=r,Born=True,class_A=True,intraleg=True,)
         gtn.measure_all_class_AIII_r(A_list=np.sqrt(1-A**2),r=r,Born=True,class_A=True,intraleg=False,)

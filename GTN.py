@@ -177,7 +177,7 @@ class GTN:
             self.measure([n], np.array([i,(i+1)%(2*self.L)]))
     
     def measure_all_class_AIII(self,A_list,Born=True,class_A=False,even=True,):
-        proj_range=np.arange(self.L//2)*4 if even else np.arange(self.L//2)*4+2 # Majorana site index of left leg
+        proj_range=np.arange(self.L//2)*4 if even else np.arange(self.L//2)*4+2 # Majorana site index of leftmost leg
         if isinstance(A_list, int) or isinstance(A_list, float):
             A_list=np.array([A_list]*len(proj_range))
         if self.history:
@@ -272,8 +272,11 @@ class GTN:
         For n_A, we literally take p, while for n_B we substitute the prob from p to 1-p
         '''
         proj_range=np.arange(self.L)*2 if even else np.arange(self.L)*2+1
-        proj_range_1=proj_range if not self.op else proj_range+2* self.L
-        proj_range_2=(proj_range+1)%(2*self.L) if not self.op else (proj_range+1)%(2*self.L) + 2*self.L
+        # Why do you want to change the system sites to the later part?
+        # proj_range_1=proj_range if not self.op else proj_range+2* self.L
+        # proj_range_2=(proj_range+1)%(2*self.L) if not self.op else (proj_range+1)%(2*self.L) + 2*self.L
+        proj_range_1=proj_range
+        proj_range_2=(proj_range+1)%(2*self.L)
         if isinstance(p_list, int) or isinstance(p_list, float):
             p_list=np.array([p_list]*len(proj_range_1))
         if self.history:
@@ -350,12 +353,15 @@ class GTN:
         return np.mean(MI)
         # return MI
 
-    def entanglement_contour(self,subregion):
+    def entanglement_contour(self,subregion,fermion=False):
+        # c_A=self.c_subregion_m(subregion)
         c_A=self.c_subregion_m(subregion)+1e-18j
         C_f=(np.eye(c_A.shape[0])+1j*c_A)/2
         f,_=la.funm(C_f,lambda x: -x*np.log(x),disp=False)
-        # return np.diag(f).real.reshape((-1,2)).sum(axis=1)
-        return np.diag(f).real
+        if fermion:
+            return np.diag(f).real.reshape((-1,2)).sum(axis=1)
+        else:
+            return np.diag(f).real
 
     def mutual_information_m(self,subregion_A,subregion_B,Gamma=None):
         ''' Composite fermion site index'''

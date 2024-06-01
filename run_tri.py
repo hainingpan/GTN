@@ -23,8 +23,14 @@ def measure_final(inputs):
     for i in range(t):
         gtn.measure_all_tri_op(p_list=p,Born=Born,even=True)
         gtn.measure_all_tri_op(p_list=1-p,Born=Born,even=False)
-    MI=gtn.mutual_information_cross_ratio()
-    EE=gtn.von_Neumann_entropy_m_self_average()
+    gtn.measure_all_tri_op(p_list=p,Born=Born,even=True)
+    MI_0=gtn.mutual_information_cross_ratio()
+    EE_0=gtn.von_Neumann_entropy_m_self_average()
+    gtn.measure_all_tri_op(p_list=1-p,Born=Born,even=False)
+    MI_1=gtn.mutual_information_cross_ratio()
+    EE_1=gtn.von_Neumann_entropy_m_self_average()
+    MI=(MI_0+MI_1)/2
+    EE=(EE_0+EE_1)/2
     return MI,EE
 
 

@@ -77,7 +77,7 @@ class GTN:
 
         # assert np.abs(np.trace(Psi))<1e-5, "Not trace zero {:e}".format(np.trace(Psi))
         if self.history:
-            self.C_m_history.append(Psi)
+            self.C_m_history.append(Psi.copy())
             self.n_history.append(n)
             self.i_history.append(ix)
             # self.MI_history.append(self.mutual_information_cross_ratio())

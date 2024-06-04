@@ -309,7 +309,7 @@ class GTN:
             for (i,j),p in zip(site_list,p_list):
                 Gamma=self.C_m_history[-1][[i],[j]]
                 n_list=get_Born_tri_op(p,Gamma,rng=self.rng)
-                self.measure(n_list,[i,j])
+                self.measure(n_list[0],[i,j])
         else:
             pass
     
@@ -324,7 +324,7 @@ class GTN:
             for (i,j),p in zip(site_list,p_list):
                 Gamma=self.C_m_history[-1][[i],[j]]
                 n_list=get_Born_tri_op(p,Gamma,rng=self.rng)
-                self.measure(n_list,[i,j])
+                self.measure(n_list[0],[i,j])
                 if n_list[0] == [-1,0,0] or [1,0,0]:
                     # P_+ or P_-
                     other_leg=find_other_leg(parity_dict, (i,j))

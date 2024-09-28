@@ -133,3 +133,14 @@ class Braiding:
             self.p_lists += p_list
             self.step_number+=[step_number]*len(site_list)
             
+def plot_trijunction(x1,x2,y1,y2,ax=None,s=5):
+    if ax is None:
+        fig,ax=plt.subplots()
+    ax.plot([0.5,2],[0,0],color='k',lw=1)
+    ax.plot([-0.5,-2],[0,0],color='k',lw=1)
+    ax.plot([0,0],[-0.5,-1],color='k',lw=1)
+    ax.scatter(x1,y1,color='r',zorder=10,s=s)
+    ax.scatter(x2,y2,color='b',zorder=10,s=s)
+    ax.set_xlim([-2,2])
+    ax.set_ylim([-1,0.2])
+    ax.set_axis_off()

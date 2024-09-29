@@ -360,6 +360,7 @@ class GTN:
 
                     Gamma=self.C_m_history[-1][np.ix_(legs,legs)]
                     kind,theta1,theta2=get_Born_class_AIII(A=A_list[idx],Gamma=Gamma,rng=self.rng,class_A=class_A,)
+                    # print(legs,kind,A_list[idx],theta1,theta2)
                     self.measure_class_AIII(A=A_list[idx],theta1=theta1,theta2=theta2,kind=kind,ix=legs)
                 else:
                     if even: 
@@ -367,9 +368,14 @@ class GTN:
                         legs=[site_A_left[idx],(site_A_left[idx]+1)%(2*self.L),site_B_left[idx],(site_B_left[idx]+1)%(2*self.L),site_A_left[(idx+r0)%(self.L//2)],(site_A_left[(idx+r0)%(self.L//2)]+1)%(2*self.L),site_B_left[(idx+r0)%(self.L//2)],(site_B_left[(idx+r0)%(self.L//2)]+1)%(2*self.L)]
                     else:
                         # complex fermion (iB, iA+r, iB+r, iA+r+1)
-                        legs=[site_B_left[idx],(site_B_left[idx]+1)%(2*self.L),site_A_left[(idx+r0)%(self.L//2)],(site_A_left[(idx+r0)%(self.L//2)]+1)%(2*self.L),site_B_left[(idx+r0)%(self.L//2)],(site_B_left[(idx+r0)%(self.L//2)]+1)%(2*self.L),site_A_left[(idx+r0+1)%(self.L//2)],(site_A_left[(idx+r0+1)%(self.L//2)]+1)%(2*self.L)]
+                        legs=[site_A_left[(idx+r0+1)%(self.L//2)],(site_A_left[(idx+r0+1)%(self.L//2)]+1)%(2*self.L),
+                        site_B_left[(idx+r0+1)%(self.L//2)],(site_B_left[(idx+r0+1)%(self.L//2)]+1)%(2*self.L),
+                        site_A_left[idx],(site_A_left[idx]+1)%(2*self.L),
+                        site_B_left[idx],(site_B_left[idx]+1)%(2*self.L),
+                        ]
                     Gamma=self.C_m_history[-1][np.ix_(legs,legs)]
                     kind,theta1,theta2=get_Born_class_AIII(A=A_list[idx],Gamma=Gamma,rng=self.rng,class_A=class_A,)
+                    # print(legs,kind,A_list[idx],theta1,theta2)
                     self.measure_class_AIII_unitary(A=A_list[idx],theta1=theta1,theta2=theta2,kind=kind,ix=legs)
         else:
             pass
@@ -516,7 +522,7 @@ class GTN:
             return np.diag(f).real
 
     def mutual_information_m(self,subregion_A,subregion_B,Gamma=None):
-        ''' Composite fermion site index'''
+        ''' Complex fermion site index'''
         assert np.intersect1d(subregion_A,subregion_B).size==0 , "Subregion A and B overlap"
         s_A=self.von_Neumann_entropy_m(subregion_A,Gamma)
         s_B=self.von_Neumann_entropy_m(subregion_B,Gamma)

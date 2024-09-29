@@ -352,12 +352,11 @@ class GTN:
         if Born:
             for idx in range(self.L//2):
                 r0=int(np.round(self.rng.uniform(r_list[idx]-1/2,r_list[idx]+1/2)))
-                if r0==0:
-                    if even:
-                        # complex fermion (iA, iB, )
-                        legs=[site_A_left[idx],(site_A_left[idx]+1)%(2*self.L),site_B_left[(idx+r0)%(self.L//2)],(site_B_left[(idx+r0)%(self.L//2)]+1)%(2*self.L)]
-                    else:
-                        legs=[site_B_left[idx],(site_B_left[idx]+1)%(2*self.L),site_A_left[(idx+r0+1)%(self.L//2)],(site_A_left[(idx+r0+1)%(self.L//2)]+1)%(2*self.L)]
+                if r0==0 and even:
+                    # complex fermion (iA, iB, )
+                    legs=[site_A_left[idx],(site_A_left[idx]+1)%(2*self.L),site_B_left[(idx+r0)%(self.L//2)],(site_B_left[(idx+r0)%(self.L//2)]+1)%(2*self.L)]
+                    # else:
+                    #     legs=[site_B_left[idx],(site_B_left[idx]+1)%(2*self.L),site_A_left[(idx+r0+1)%(self.L//2)],(site_A_left[(idx+r0+1)%(self.L//2)]+1)%(2*self.L)]
 
                     Gamma=self.C_m_history[-1][np.ix_(legs,legs)]
                     kind,theta1,theta2=get_Born_class_AIII(A=A_list[idx],Gamma=Gamma,rng=self.rng,class_A=class_A,)

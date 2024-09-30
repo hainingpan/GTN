@@ -15,7 +15,7 @@ class GTN:
         self.rng=np.random.default_rng(seed)
         self.C_m=self.correlation_matrix()
         self.Gamma_like=np.zeros_like(self.C_m)
-        self.C_m_history=[self.C_m]
+        self.C_m_history=[self.C_m.copy()]
         self.history=history
         self.n_history=[]
         self.i_history=[]
@@ -59,7 +59,7 @@ class GTN:
         n_list: [1,-1,...]
         simply set all Gamma[i,j]=n, Gamma[j,i]=-n
         """
-        Gamma=self.C_m_history[-1]
+        Gamma=self.C_m
         for ij,n in zip(ij_list,n_list):
             i,j=ij
             Gamma[i,j]=n
@@ -69,7 +69,7 @@ class GTN:
         ''' Majorana site index for ix, 
         n should be a scalar'''
 
-        Psi=self.C_m_history[-1]
+        Psi=self.C_m
         proj=self.kraus(n)
         # ix_bar=np.array([i for i in np.arange(self.L*2) if i not in ix]) if not self.op else np.array([i for i in np.arange(self.L*4) if i not in ix])
         ix_bar=np.array([i for i in np.arange(self.C_m[-1].shape[0]) if i not in ix])
@@ -221,7 +221,7 @@ class GTN:
     def measure_class_AIII(self,A,theta1,theta2,kind,ix,):
         ''' Majorana site index for ix'''
         assert len(ix)==4, 'len of ix should be 4'
-        Psi=self.C_m_history[-1]
+        Psi=self.C_m
         ix_bar=np.array(list(self.full_ix-set(ix)))
         proj=self.op_class_AIII(A,theta1,theta2,kind)
         P_contraction_2(Psi,proj,ix,ix_bar,self.Gamma_like,reset_Gamma_like=False)
@@ -239,10 +239,10 @@ class GTN:
     def measure_class_AIII_unitary(self,A,theta1,theta2,kind,ix,):
         ''' Majorana site index for ix, allows nonlocal unitary'''
         assert len(ix)==8, 'len of ix should be 8'
-        Psi=self.C_m_history[-1]
+        Psi=self.C_m
         ix_bar=np.array(list(self.full_ix-set(ix)))
         proj=self.op_class_AIII_unitary(A,theta1,theta2,kind)
-        P_contraction_2(Psi,proj,ix,ix_bar,self.Gamma_like,reset_Gamma_like=False)
+        P_contraction_2(Psi,proj,ix,ix_bar,self.Gamma_like,reset_Gamma_like=True)
         if self.history:
             self.C_m_history.append(Psi.copy())
             self.n_history.append([A,theta1,theta2,kind])
@@ -257,7 +257,7 @@ class GTN:
     def measure_all(self,a1,a2,b1,b2,even=True,theta_list=0,phi_list=0,Born=False):
         proj_range=np.arange(self.L)*2 if even else np.arange(self.L)*2+1 # Majorana site index of left leg
         if Born:
-            Gamma_list=self.C_m_history[-1][proj_range,(proj_range+1)%(2*self.L)]
+            Gamma_list=self.C_m[proj_range,(proj_range+1)%(2*self.L)]
             n_list=get_Born_B(a1,a2,b1,b2,Gamma_list,theta_list=theta_list,phi_list=phi_list,rng=self.rng)
         else:
             n_list=get_random(a1,a2,b1,b2,proj_range.shape[0],theta_list=theta_list,phi_list=phi_list,rng=self.rng)
@@ -275,42 +275,12 @@ class GTN:
         if Born:
             for i, A in zip(proj_range,A_list):
                 legs=[i,(i+1)%(2*self.L),(i+2)%(2*self.L),(i+3)%(2*self.L)]
-                Gamma=self.C_m_history[-1][np.ix_(legs,legs)]
+                Gamma=self.C_m[np.ix_(legs,legs)]
                 kind,theta1,theta2=get_Born_class_AIII(A=A,Gamma=Gamma,rng=self.rng,class_A=class_A,)
                 self.measure_class_AIII(A=A,theta1=theta1,theta2=theta2,kind=kind,ix=legs)
         else:
             pass
 
-    # def measure_all_class_AIII_r(self,A_list,r_list,Born=True,class_A=False,intraleg=True,):
-    # """Archived. The issue is that the intraleg does not respect the chiral symmetry"""
-    #     site_A_left=np.arange(self.L//2)*4
-    #     site_B_left=np.arange(self.L//2)*4+2
-    #     if isinstance(A_list, int) or isinstance(A_list, float):
-    #         A_list=np.array([A_list]*(self.L//2))
-    #     if isinstance(r_list, int) or isinstance(r_list, float):
-    #         r_list=np.array([r_list]*(self.L//2))
-    #     if self.history:
-    #         self.p_history.append(A_list)
-    #     else:
-    #         self.p_history=[A_list]
-    #     if Born:
-    #         for idx in range(self.L//2):
-    #             r0=int(np.round(self.rng.uniform(r_list[idx]-1/2,r_list[idx]+1/2)))
-    #             if intraleg:
-    #                 legs=[site_B_left[idx],(site_B_left[idx]+1)%(2*self.L),site_B_left[(idx+r0)%(self.L//2)],(site_B_left[(idx+r0)%(self.L//2)]+1)%(2*self.L)]
-    #             else:
-    #                 legs=[site_B_left[idx],(site_B_left[idx]+1)%(2*self.L),site_A_left[(idx+r0)%(self.L//2)],(site_A_left[(idx+r0)%(self.L//2)]+1)%(2*self.L)]
-
-    #             if r0 ==0 and intraleg:
-    #                 # tackle onsite unitary
-    #                 pass
-    #             else:
-    #                 Gamma=self.C_m_history[-1][np.ix_(legs,legs)]
-    #                 kind,theta1,theta2=get_Born_class_AIII(A=A_list[idx],Gamma=Gamma,rng=self.rng,class_A=class_A,)
-    #                 self.measure_class_AIII(A=A_list[idx],theta1=theta1,theta2=theta2,kind=kind,ix=legs)
-    #     else:
-    #         pass
-    
     def measure_all_class_AIII_r_unified(self,A_list,r_list,Born=True,class_A=False,even=True,):
         """use a unified language, where even is always iA and i+r,B, and odd is iB and i+r+1,A"""
         site_A_left=np.arange(self.L//2)*4
@@ -330,8 +300,9 @@ class GTN:
                     legs=[site_A_left[idx],(site_A_left[idx]+1)%(2*self.L),site_B_left[(idx+r0)%(self.L//2)],(site_B_left[(idx+r0)%(self.L//2)]+1)%(2*self.L)]
                 else:
                     legs=[site_B_left[idx],(site_B_left[idx]+1)%(2*self.L),site_A_left[(idx+r0+1)%(self.L//2)],(site_A_left[(idx+r0+1)%(self.L//2)]+1)%(2*self.L)]
+                    # legs= [site_A_left[(idx+r0+1)%(self.L//2)],(site_A_left[(idx+r0+1)%(self.L//2)]+1)%(2*self.L),site_B_left[idx],(site_B_left[idx]+1)%(2*self.L)]
 
-                Gamma=self.C_m_history[-1][np.ix_(legs,legs)]
+                Gamma=self.C_m[np.ix_(legs,legs)]
                 kind,theta1,theta2=get_Born_class_AIII(A=A_list[idx],Gamma=Gamma,rng=self.rng,class_A=class_A,)
                 self.measure_class_AIII(A=A_list[idx],theta1=theta1,theta2=theta2,kind=kind,ix=legs)
         else:
@@ -358,7 +329,7 @@ class GTN:
                     # else:
                     #     legs=[site_B_left[idx],(site_B_left[idx]+1)%(2*self.L),site_A_left[(idx+r0+1)%(self.L//2)],(site_A_left[(idx+r0+1)%(self.L//2)]+1)%(2*self.L)]
 
-                    Gamma=self.C_m_history[-1][np.ix_(legs,legs)]
+                    Gamma=self.C_m[np.ix_(legs,legs)]
                     kind,theta1,theta2=get_Born_class_AIII(A=A_list[idx],Gamma=Gamma,rng=self.rng,class_A=class_A,)
                     # print(legs,kind,A_list[idx],theta1,theta2)
                     self.measure_class_AIII(A=A_list[idx],theta1=theta1,theta2=theta2,kind=kind,ix=legs)
@@ -367,14 +338,22 @@ class GTN:
                         # complex fermion (iA, iB, iA+r, iB+r)
                         legs=[site_A_left[idx],(site_A_left[idx]+1)%(2*self.L),site_B_left[idx],(site_B_left[idx]+1)%(2*self.L),site_A_left[(idx+r0)%(self.L//2)],(site_A_left[(idx+r0)%(self.L//2)]+1)%(2*self.L),site_B_left[(idx+r0)%(self.L//2)],(site_B_left[(idx+r0)%(self.L//2)]+1)%(2*self.L)]
                     else:
-                        # complex fermion (iB, iA+r, iB+r, iA+r+1)
-                        legs=[site_A_left[(idx+r0+1)%(self.L//2)],(site_A_left[(idx+r0+1)%(self.L//2)]+1)%(2*self.L),
+                        # complex fermion (iA, iB, i+r+1A, i+r+1B) or (i+r+1B,i+r+1A, iB,iA) due to the symmetry of Kraus operator with iA<->jB, and iB<->jA
+                        legs=[
+                        site_A_left[(idx+r0+1)%(self.L//2)],(site_A_left[(idx+r0+1)%(self.L//2)]+1)%(2*self.L),
                         site_B_left[(idx+r0+1)%(self.L//2)],(site_B_left[(idx+r0+1)%(self.L//2)]+1)%(2*self.L),
                         site_A_left[idx],(site_A_left[idx]+1)%(2*self.L),
                         site_B_left[idx],(site_B_left[idx]+1)%(2*self.L),
                         ]
-                    Gamma=self.C_m_history[-1][np.ix_(legs,legs)]
-                    kind,theta1,theta2=get_Born_class_AIII(A=A_list[idx],Gamma=Gamma,rng=self.rng,class_A=class_A,)
+                        # legs=[
+                        # site_B_left[idx],(site_B_left[idx]+1)%(2*self.L),
+                        # site_A_left[idx],(site_A_left[idx]+1)%(2*self.L),
+                        # site_B_left[(idx+r0+1)%(self.L//2)],(site_B_left[(idx+r0+1)%(self.L//2)]+1)%(2*self.L),
+                        # site_A_left[(idx+r0+1)%(self.L//2)],(site_A_left[(idx+r0+1)%(self.L//2)]+1)%(2*self.L),
+                        # ]
+                    Gamma=self.C_m[np.ix_(legs,legs)]
+                    kind,theta1,theta2=get_Born_class_AIII_unitary(A=A_list[idx],Gamma=Gamma,rng=self.rng,class_A=class_A,)
+                    theta1,theta2=0.,0.
                     # print(legs,kind,A_list[idx],theta1,theta2)
                     self.measure_class_AIII_unitary(A=A_list[idx],theta1=theta1,theta2=theta2,kind=kind,ix=legs)
         else:
@@ -392,13 +371,13 @@ class GTN:
         if isinstance(phi_list, int) or isinstance(phi_list, float):
             phi_list=[phi_list]*len(proj_range_1)
         if Born:
-            if self.C_m_history[-1].size==0:
+            if self.C_m.size==0:
                 Gamma_list=np.array([1]*self.L)
                 n_list=get_Born(a1,a2,b1,b2,Gamma_list,theta_list=theta_list,phi_list=phi_list,rng=self.rng)
                 self.measure(n_list,np.c_[proj_range_1,proj_range_2].flatten())
             else:
                 for i,j in zip(proj_range_1,proj_range_2):
-                    Gamma=self.C_m_history[-1][[i],[j]]
+                    Gamma=self.C_m[[i],[j]]
                     if even:
                         n_list=get_Born_A(a1,a2,b1,b2,Gamma,rng=self.rng)
                     else:
@@ -410,7 +389,7 @@ class GTN:
 
     def measure_all_Haar(self,sigma=0,even=True,theta_list=0,phi_list=0):
         proj_range=np.arange(self.L)*2 if even else np.arange(self.L)*2+1
-        C_m=self.C_m_history[-1]
+        C_m=self.C_m
         proj_range_1=proj_range
         proj_range_2=(proj_range+1)%(2*self.L)
         if isinstance(theta_list, int) or isinstance(theta_list, float):
@@ -443,7 +422,7 @@ class GTN:
             self.p_history=[p_list]
         if Born:
             for i,j,p in zip(proj_range_1,proj_range_2,p_list):
-                Gamma=self.C_m_history[-1][[i],[j]]
+                Gamma=self.C_m[[i],[j]]
                 n_list=get_Born_tri_op(p,Gamma,rng=self.rng)
                 if not self.pbc and not even and i==proj_range_1[-1]:
                     continue
@@ -465,7 +444,7 @@ class GTN:
         if Born:
             assert len(site_list)== len(p_list), f'site_list ({len(site_list)}) is not equal to p_list ({len(p_list)})'
             for (i,j),p in zip(site_list,p_list):
-                Gamma=self.C_m_history[-1][[i],[j]]
+                Gamma=self.C_m[[i],[j]]
                 n_list=get_Born_tri_op(p,Gamma,rng=self.rng)
                 self.measure(n_list[0],[i,j])
         else:
@@ -480,7 +459,7 @@ class GTN:
         if Born:
             assert len(site_list)== len(p_list), f'site_list ({len(site_list)}) is not equal to p_list ({len(p_list)})'
             for (i,j),p in zip(site_list,p_list):
-                Gamma=self.C_m_history[-1][[i],[j]]
+                Gamma=self.C_m[[i],[j]]
                 n_list=get_Born_tri_op(p,Gamma,rng=self.rng)
                 self.measure(n_list[0],[i,j])
                 if n_list[0] == [-1,0,0] or [1,0,0]:
@@ -556,7 +535,7 @@ class GTN:
 
     def c_subregion_m(self,subregion,Gamma=None):
         if Gamma is None:
-            Gamma=self.C_m_history[-1]
+            Gamma=self.C_m
         subregion=self.linearize_index(subregion,2)
         return Gamma[np.ix_(subregion,subregion)]
 
@@ -589,6 +568,7 @@ def get_Born_tri_op(p,Gamma,rng=None):
 def get_Born_class_AIII(A,Gamma,class_A=False,rng=None):
     rng=np.random.default_rng(rng)
     prob={(s1,s2): Gamma[0,1]*(-s1-s2)/8*A + Gamma[0,3]*(-s1+s2)/8*A + Gamma[1,2]*(s1-s2)/8*A + Gamma[2,3]*(-s1-s2)/8*A - (-Gamma[0,1]*Gamma[2,3]+Gamma[0,2]*Gamma[1,3]-Gamma[0,3]*Gamma[1,2])*s1*s2*A**2/4+1/4 for s1 in [-1,1] for s2 in [-1,1]}
+    # print([f'{key}:{val:.2f}' for key,val in prob.items()])
     for key,val in prob.items():
         assert val>-1e-9, f'{key} < 0 = {val}, {prob}'
         assert val<1+1e-9, f'{key} > 1 = {val}'
@@ -603,6 +583,27 @@ def get_Born_class_AIII(A,Gamma,class_A=False,rng=None):
     theta=rng.uniform(-np.pi,np.pi,size=2)
     return tuple(kind), theta[0],theta[1]
 
+def get_Born_class_AIII_unitary(A,Gamma,class_A=False,rng=None):
+    """here the only difference is the inclusion of extra basis, maybe a good idea is to rederived
+    extend from iA, jB to iA, iB, jA, jB, 
+    (0,1,2,3): iA, jB
+    is mapped to 
+    (iA, iB, jA, jB): (0,1,2,3,4,5,6,7), """
+    rng=np.random.default_rng(rng)
+    prob={(s1,s2): Gamma[0,1]*(-s1-s2)/8*A + Gamma[0,7]*(-s1+s2)/8*A + Gamma[1,6]*(s1-s2)/8*A + Gamma[6,7]*(-s1-s2)/8*A - (-Gamma[0,1]*Gamma[6,7]+Gamma[0,6]*Gamma[1,7]-Gamma[0,7]*Gamma[1,6])*s1*s2*A**2/4+1/4 for s1 in [-1,1] for s2 in [-1,1]}
+    for key,val in prob.items():
+        assert val>-1e-9, f'{key} < 0 = {val}, {prob}'
+        assert val<1+1e-9, f'{key} > 1 = {val}'
+        if prob[key]>1 or prob[key]<0:
+            prob[key]=np.clip(val,0.,1.)
+    if not class_A:
+        kind=rng.choice(list(prob.keys()),p=list(prob.values()))
+    else:
+        post_selected_outcome=[(-1,1),(1,-1)]
+        norm= sum(prob[i] for i in post_selected_outcome)
+        kind=rng.choice(post_selected_outcome,p=[prob[i]/norm for i in post_selected_outcome])
+    theta=rng.uniform(-np.pi,np.pi,size=2)
+    return tuple(kind), theta[0],theta[1]
 
 def get_random(a1,a2,b1,b2,num,rng=None,theta_list=0,phi_list=0):
     '''
@@ -843,6 +844,14 @@ def P_contraction_2(Gamma,Upsilon,ix,ix_bar,Gamma_like=None,reset_Gamma_like=Tru
         Gamma-=Gamma.T
         Gamma/=2
 
+def plot_Gamma(Gamma,filename=None):
+    # for debugging purpose
+    import matplotlib.pyplot as plt
+    fig,ax=plt.subplots()
+    im=ax.imshow(Gamma)
+    plt.colorbar(im)
+    filename = filename if filename is not None else 'Gamma.png'
+    fig.savefig(filename)
 
 def interpolation(x1,x2,l0,h0,L,k=1,sign=1):
     x=np.arange(L)

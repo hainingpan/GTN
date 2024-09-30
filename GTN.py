@@ -353,7 +353,7 @@ class GTN:
                         # ]
                     Gamma=self.C_m[np.ix_(legs,legs)]
                     kind,theta1,theta2=get_Born_class_AIII_unitary(A=A_list[idx],Gamma=Gamma,rng=self.rng,class_A=class_A,)
-                    theta1,theta2=0.,0.
+                    # theta1,theta2=0.,0.
                     # print(legs,kind,A_list[idx],theta1,theta2)
                     self.measure_class_AIII_unitary(A=A_list[idx],theta1=theta1,theta2=theta2,kind=kind,ix=legs)
         else:

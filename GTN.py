@@ -308,7 +308,7 @@ class GTN:
         else:
             pass
 
-    def measure_all_class_AIII_r_unitary(self,A_list,r_list,Born=True,class_A=False,even=True,factor=1):
+    def measure_all_class_AIII_r_unitary(self,A_list,r_list,Born=True,class_A=False,even=True,factor=1,break_symm=False):
         """this allows non local unitary to have exp(i*theta*(c_iA^dag cjA - c_iA c_jA^dag))
         factor is used to ``suppress'' the variance of random unitary"""
         site_A_left=np.arange(self.L//2)*4
@@ -327,18 +327,16 @@ class GTN:
                 if r0==0 and even:
                     # complex fermion (iA, iB, )
                     legs=[site_A_left[idx],(site_A_left[idx]+1)%(2*self.L),site_B_left[(idx+r0)%(self.L//2)],(site_B_left[(idx+r0)%(self.L//2)]+1)%(2*self.L)]
-                    # else:
-                    #     legs=[site_B_left[idx],(site_B_left[idx]+1)%(2*self.L),site_A_left[(idx+r0+1)%(self.L//2)],(site_A_left[(idx+r0+1)%(self.L//2)]+1)%(2*self.L)]
 
                     Gamma=self.C_m[np.ix_(legs,legs)]
                     kind,theta1,theta2=get_Born_class_AIII(A=A_list[idx],Gamma=Gamma,rng=self.rng,class_A=class_A,)
                     theta1,theta2=theta1/factor,theta2/factor
-                    # print(legs,kind,A_list[idx],theta1,theta2)
                     self.measure_class_AIII(A=A_list[idx],theta1=theta1,theta2=theta2,kind=kind,ix=legs)
                 else:
                     if even: 
-                        # complex fermion (iA, iB, iA+r, iB+r)
+                        # complex fermion (iA, iB, jA, jB), j=i+r
                         legs=[site_A_left[idx],(site_A_left[idx]+1)%(2*self.L),site_B_left[idx],(site_B_left[idx]+1)%(2*self.L),site_A_left[(idx+r0)%(self.L//2)],(site_A_left[(idx+r0)%(self.L//2)]+1)%(2*self.L),site_B_left[(idx+r0)%(self.L//2)],(site_B_left[(idx+r0)%(self.L//2)]+1)%(2*self.L)]
+                        
                     else:
                         # complex fermion (iA, iB, i+r+1A, i+r+1B) or (i+r+1B,i+r+1A, iB,iA) due to the symmetry of Kraus operator with iA<->jB, and iB<->jA
                         legs=[
@@ -347,17 +345,13 @@ class GTN:
                         site_A_left[idx],(site_A_left[idx]+1)%(2*self.L),
                         site_B_left[idx],(site_B_left[idx]+1)%(2*self.L),
                         ]
-                        # legs=[
-                        # site_B_left[idx],(site_B_left[idx]+1)%(2*self.L),
-                        # site_A_left[idx],(site_A_left[idx]+1)%(2*self.L),
-                        # site_B_left[(idx+r0+1)%(self.L//2)],(site_B_left[(idx+r0+1)%(self.L//2)]+1)%(2*self.L),
-                        # site_A_left[(idx+r0+1)%(self.L//2)],(site_A_left[(idx+r0+1)%(self.L//2)]+1)%(2*self.L),
-                        # ]
+                    if break_symm:
+                        # here to manually break the symmetry, by effectively swapping only jB<-> iA
+                        legs[0],legs[3]=legs[3],legs[0]
+                        
                     Gamma=self.C_m[np.ix_(legs,legs)]
                     kind,theta1,theta2=get_Born_class_AIII_unitary(A=A_list[idx],Gamma=Gamma,rng=self.rng,class_A=class_A,)
-                    # theta1,theta2=0.,0.
                     theta1,theta2=theta1/factor,theta2/factor
-                    # print(legs,kind,A_list[idx],theta1,theta2)
                     self.measure_class_AIII_unitary(A=A_list[idx],theta1=theta1,theta2=theta2,kind=kind,ix=legs)
         else:
             pass

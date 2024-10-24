@@ -433,7 +433,7 @@ class GTN:
                     n[0]=-n[0]
                     # This is a workaround to let it run, however, in forced measurement, the strong projection is problematic, as it can sometimes vanish the state
                     self.measure(n,[i,j])
-    def measure_all_tri_op_D(self,p_list,r_list,Born=True,even=True):
+    def measure_all_tri_op_D(self,p_list,r_list,Born=True,even=True,sigma=1,eps_=1e-10):
         '''The Kraus operator is composed of only three in circuit D-- with BDI as state
         sqrt(1-p) exp(i*phi_1* i* gamma_{iA} * gamma_{jA})exp(i*phi_2* i* gamma_{iB} * gamma_{jB}), phi ~ U[0,2pi]; n=(0,cos(phi),sin(phi))
         sqrt(p) (1+i* gamma_{iA} * gamma_{jB})/2; n=(-1,0,0)
@@ -455,12 +455,15 @@ class GTN:
             for idx in range(self.L):
                 r0=int(np.round(self.rng.uniform(r_list[idx]-1/2,r_list[idx]+1/2)))
                 if r0==0 and even:
-                    # Majorana fermion (iA, iB)
+                    # Majorana fermion (iA, iB), 
+                    # Here, choose between measurement and "trivial" unitary (i.e., identity) applied
                     legs_M=[site_A_left[idx],site_B_left[idx]]
                     Gamma=np.array([self.C_m[tuple(legs_M)]])
-                    n_list=get_Born_tri_op(p_list[idx],Gamma,rng=self.rng,sigma=1/16)
+                    n_list=get_Born_tri_op(p_list[idx],Gamma,rng=self.rng,sigma=sigma)
                     # print(legs_M,Gamma[0],n_list)
-                    self.measure(n_list[0],legs_M)
+                    if np.abs(n_list[0][0])>eps_:
+                        # print(legs_M,Gamma[0],n_list)
+                        self.measure(n_list[0],legs_M)
                 else:
                     if even:
                         # Majorana fermion (iA, iB, jA, jB), j=i+r
@@ -472,15 +475,37 @@ class GTN:
                         legs_U1=[site_A_left[idx],site_A_left[(idx+r0+1)%(self.L)]]
                         legs_U2=[site_B_left[idx],site_B_left[(idx+r0+1)%(self.L)]]
                         legs_M=[site_A_left[(idx+r0+1)%(self.L)],site_B_left[idx]]
-                    for idx,legs in enumerate([legs_U1,legs_U2,legs_M]):
-                        Gamma=np.array([self.C_m[tuple(legs_M)]])
+
+                    Gamma=np.array([self.C_m[tuple(legs_M)]])
+                    n_list=get_Born_tri_op(p_list[idx],Gamma,rng=self.rng,sigma=sigma)
+
+                    if np.abs(n_list[0][0])<eps_:
+                        # apply unitary
+                        for legs in [legs_U1,legs_U2]:
+                            Gamma=np.array([self.C_m[tuple(legs)]])
+                            n_list=get_Born_tri_op(0,Gamma,rng=self.rng,sigma=sigma)
+                            # print(legs,Gamma[0],n_list)
+                            self.measure(n_list[0],legs)
+                    else:
+                        # print(legs_M,Gamma[0],n_list)
+                        self.measure(n_list[0],legs_M)
+
+
+                    # for idx,legs in enumerate([legs_U1,legs_U2,legs_M]):
+                    #     Gamma=np.array([self.C_m[tuple(legs_M)]])
                         
-                        if idx<2:
-                            n_list=get_Born_tri_op(0,Gamma,rng=self.rng,sigma=1/16)
-                        else:
-                            n_list=get_Born_tri_op(p_list[idx],Gamma,rng=self.rng,sigma=1/16)
-                        # print(legs,Gamma[0],n_list)
-                        self.measure(n_list[0],legs)
+                    #     if idx<2:
+                    #         n_list=get_Born_tri_op(0,Gamma,rng=self.rng,sigma=1/16)
+                    #         self.measure(n_list[0],legs)
+                    #     else:
+                    #         n_list=get_Born_tri_op(p_list[idx],Gamma,rng=self.rng,sigma=1/16)
+                    #         if np.abs(n_list[0][0])>0:
+                    #             self.measure(n_list[0],legs_M)
+
+
+
+                        # 
+                        
                     
 
     def measure_list_tri_op(self,site_list,p_list,Born=True,):

@@ -31,10 +31,11 @@ def run_single_class_AIII_unitary(inputs):
     for i in range(t):
         # gtn.measure_all_class_AIII_r_unified(A_list=A,Born=Born,r_list=r,even=True,class_A=True)
         # gtn.measure_all_class_AIII_r_unified(A_list=np.sqrt(1-A**2),Born=Born,r_list=r,even=False,class_A=True)
-        gtn.measure_all_class_AIII_r_unitary(A_list=A,Born=Born,r_list=r,even=True,class_A=True)
-        gtn.measure_all_class_AIII_r_unitary(A_list=np.sqrt(1-A**2),r_list=r,Born=Born,even=False,class_A=True)
-    MI=gtn.mutual_information_cross_ratio(unitcell=2,ratio=[1,8])
-    EE=gtn.von_Neumann_entropy_m_self_average(unitcell=2)
+        gtn.measure_all_class_AIII_r_unitary(A_list=A,Born=Born,r_list=r,even=True,class_A=True,break_symm=True,factor=16)
+        gtn.measure_all_class_AIII_r_unitary(A_list=np.sqrt(1-A**2),r_list=r,Born=Born,even=False,class_A=True,break_symm=True,factor=16)
+    MI=gtn.mutual_information_cross_ratio(unitcell=2,ratio=[1,4])
+    # EE=gtn.von_Neumann_entropy_m_self_average(unitcell=2)
+    EE=gtn.tripartite_mutual_information_cross_ratio(unitcell=2,ratio=[1,4])
     return MI,EE
 
 def wrapper(inputs):
@@ -67,11 +68,11 @@ if __name__=="__main__":
         rs=list(tqdm(executor.map(wrapper,inputs),total=len(inputs)))
     # rs=list(tqdm(map(wrapper,inputs),total=len(inputs)))
     rs=np.array(rs).reshape((int(args.vartheta[2]),args.es,2))
-    MI,EE=rs[:,:,0],rs[:,:,1]
+    MI,TMI=rs[:,:,0],rs[:,:,1]
     
     # with open('class_{}_vartheta({:.2f},{:.2f},{:.0f})_En{:d}_L{:d}_t{:d}.pickle'.format('A' if args.class_A else 'AIII',*args.vartheta,args.es,args.L,t),'wb') as f:
     with open('class_{}_vartheta({:.2f},{:.2f},{:.0f})_En{:d}_L{:d}_t{:d}_r{:d}.pickle'.format('A' if args.class_A else 'AIII',*args.vartheta,args.es,args.L,t,args.r),'wb') as f:
-        pickle.dump({"args":args,"MI":MI,"EE":EE}, f)
+        pickle.dump({"args":args,"MI":MI,"TMI":TMI}, f)
 
     print('Time elapsed: {:.4f}'.format(time.time()-st))
 

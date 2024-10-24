@@ -433,6 +433,55 @@ class GTN:
                     n[0]=-n[0]
                     # This is a workaround to let it run, however, in forced measurement, the strong projection is problematic, as it can sometimes vanish the state
                     self.measure(n,[i,j])
+    def measure_all_tri_op_D(self,p_list,r_list,Born=True,even=True):
+        '''The Kraus operator is composed of only three in circuit D-- with BDI as state
+        sqrt(1-p) exp(i*phi_1* i* gamma_{iA} * gamma_{jA})exp(i*phi_2* i* gamma_{iB} * gamma_{jB}), phi ~ U[0,2pi]; n=(0,cos(phi),sin(phi))
+        sqrt(p) (1+i* gamma_{iA} * gamma_{jB})/2; n=(-1,0,0)
+        sqrt(p) (1-i* gamma_{iA} * gamma_{jB})/2; n=(1,0,0)
+
+        For n_A, we literally take p, while for n_B we substitute the prob from p to 1-p
+        '''
+        site_A_left=np.arange(self.L)*2
+        site_B_left=np.arange(self.L)*2+1
+        if isinstance(p_list, int) or isinstance(p_list, float):
+            p_list=np.array([p_list]*(self.L))
+        if isinstance(r_list, int) or isinstance(r_list, float):
+            r_list=np.array([r_list]*(self.L))
+        if self.history:
+            self.p_history.append(p_list)
+        else:
+            self.p_history=[p_list]
+        if Born:
+            for idx in range(self.L):
+                r0=int(np.round(self.rng.uniform(r_list[idx]-1/2,r_list[idx]+1/2)))
+                if r0==0 and even:
+                    # Majorana fermion (iA, iB)
+                    legs_M=[site_A_left[idx],site_B_left[idx]]
+                    Gamma=np.array([self.C_m[tuple(legs_M)]])
+                    n_list=get_Born_tri_op(p_list[idx],Gamma,rng=self.rng,sigma=1/16)
+                    # print(legs_M,Gamma[0],n_list)
+                    self.measure(n_list[0],legs_M)
+                else:
+                    if even:
+                        # Majorana fermion (iA, iB, jA, jB), j=i+r
+                        legs_U1=[site_A_left[idx],site_A_left[(idx+r0)%(self.L)]]
+                        legs_U2=[site_B_left[idx],site_B_left[(idx+r0)%(self.L)]]
+                        legs_M=[site_A_left[idx],site_B_left[(idx+r0)%(self.L)]]
+                    else:
+                        # Majorana fermion (iA, iB, i+r+1A, i+r+1B) 
+                        legs_U1=[site_A_left[idx],site_A_left[(idx+r0+1)%(self.L)]]
+                        legs_U2=[site_B_left[idx],site_B_left[(idx+r0+1)%(self.L)]]
+                        legs_M=[site_A_left[(idx+r0+1)%(self.L)],site_B_left[idx]]
+                    for idx,legs in enumerate([legs_U1,legs_U2,legs_M]):
+                        Gamma=np.array([self.C_m[tuple(legs_M)]])
+                        
+                        if idx<2:
+                            n_list=get_Born_tri_op(0,Gamma,rng=self.rng,sigma=1/16)
+                        else:
+                            n_list=get_Born_tri_op(p_list[idx],Gamma,rng=self.rng,sigma=1/16)
+                        # print(legs,Gamma[0],n_list)
+                        self.measure(n_list[0],legs)
+                    
 
     def measure_list_tri_op(self,site_list,p_list,Born=True,):
         '''site_list: [[i1,j1],[i2,j2],[i3,j3],...] measures [i1,j1], [i2,j2], [i3,j3] respectively
@@ -578,12 +627,12 @@ def get_random_tri_op(p,num,rng=None):
     n2,n3=get_inplane_norm(n1, num,rng=rng,sigma=np.pi/10)
     return np.c_[n1,n2,n3]
 
-def get_Born_tri_op(p,Gamma,rng=None):
+def get_Born_tri_op(p,Gamma,rng=None,sigma=1):
     num=Gamma.shape[0]
     rng=np.random.default_rng(rng)
     sign=rng.random(size=num)
     n1= (sign<p*(1+Gamma)/2)*(-1)+(sign>p*(1+Gamma)/2+1-p)
-    n2,n3=get_inplane(n1, num,rng=rng)
+    n2,n3=get_inplane(n1, num,rng=rng,sigma=sigma)
     return np.c_[n1,n2,n3]
 
 def get_Born_class_AIII(A,Gamma,class_A=False,rng=None):

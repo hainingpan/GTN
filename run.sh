@@ -39,11 +39,10 @@
 
 # mpirun -n 64 python -m mpi4py.futures run_class_A.py --Born --es 10 --vartheta 0.01 0.49 21 --class_A --L 256 --r 0
 
-# mpirun -n 64 python -m mpi4py.futures run_class_A.py --Born --es 1000 --vartheta 0.01 0.49 21 --class_A --L 16 --r 1
-# mpirun -n 64 python -m mpi4py.futures run_class_A.py --Born --es 1000 --vartheta 0.01 0.49 21 --class_A --L 32 --r 1
-# mpirun -n 64 python -m mpi4py.futures run_class_A.py --Born --es 500 --vartheta 0.01 0.49 21 --class_A --L 64 --r 1
-# mpirun -n 64 python -m mpi4py.futures run_class_A.py --Born --es 100 --vartheta 0.01 0.49 21 --class_A --L 128 --r 1
-# python run_class_A.py --Born --es 100 --vartheta 0.01 0.49 21 --class_A --L 128 --r 0
+mpirun -n 64 python -m mpi4py.futures run_class_A.py --Born --es 1000 --vartheta 0.01 0.49 49 --class_A --L 16 --r 1
+mpirun -n 64 python -m mpi4py.futures run_class_A.py --Born --es 1000 --vartheta 0.01 0.49 49 --class_A --L 32 --r 1
+mpirun -n 64 python -m mpi4py.futures run_class_A.py --Born --es 1000 --vartheta 0.01 0.49 49 --class_A --L 64 --r 1
+mpirun -n 64 python -m mpi4py.futures run_class_A.py --Born --es 1000 --vartheta 0.01 0.49 49 --class_A --L 128 --r 1
 
 # mpirun -n 64 python -m mpi4py.futures run_class_A.py --Born --es 1000 --vartheta 0.01 0.49 21 --class_A --L 16 --r 1
 # mpirun -n 64 python -m mpi4py.futures run_class_A.py --Born --es 1000 --vartheta 0.01 0.49 21 --class_A --L 32 --r 1

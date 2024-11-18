@@ -27,7 +27,7 @@ class GTN:
 
     
     def correlation_matrix(self):
-        '''if `self.op` is on, the computational chain will duplicate a reference chain, where both sites (i,i+2L) are coupled, with parity +1'''
+        '''if `self.op` is on, the physical chain will duplicate a reference chain, where both sites (i,i+2L) are coupled, with parity +1, '''
         if self.trijunction:
             '''construct trijuction, the order of the three chain are arranged from outmost to innermost, namely, 0->2L-1 is Chain 0; 2L->4L-1 is Chain 1; 4L->6L-1 is Chain 2'''
             if self.op:
@@ -117,113 +117,38 @@ class GTN:
         #                 [-n[1],n[2],0,-n[0]],
         #                 [-n[2],-n[1],n[0],0]])
     
-    def op_class_AIII(self,A,theta1,theta2,kind):
-        """in the onenote, A= tanh(\alpha)"""
-        Gamma=np.zeros((8,8),dtype=float)
-        assert 0<=A<=1, "A should be within [0,1]"
-        sq_A=np.sqrt(1-A**2)
-        cos_theta1,sin_theta1=np.cos(theta1),np.sin(theta1)
-        cos_theta2,sin_theta2=np.cos(theta2),np.sin(theta2)
-        if kind == (1,1) or kind == (-1,-1):
-            Gamma[0,1]=Gamma[2,3]=kind[0]*A
-            Gamma[4,5]=Gamma[6,7]=-kind[0]*A
-            Gamma[0,4]=Gamma[1,5]=sq_A*cos_theta1
-            Gamma[0,5]=-sq_A*sin_theta1
-            Gamma[1,4]=sq_A*sin_theta1
-            Gamma[2,6]=Gamma[3,7]=sq_A*cos_theta2
-            Gamma[2,7]=-sq_A*sin_theta2
-            Gamma[3,6]=sq_A*sin_theta2
-        elif kind == (-1,1) or kind == (1,-1):
-            cos_theta1_theta2,sin_theta1_theta2=np.cos(theta1-theta2),np.sin(theta1-theta2)
-            Gamma[0,3]=kind[0]*A*cos_theta1_theta2
-            Gamma[5,6]=kind[0]*A
-            Gamma[1,2]=-kind[0]*A*cos_theta1_theta2
-            Gamma[4,7]=-kind[0]*A
-            Gamma[0,4]=Gamma[1,5]=sq_A*cos_theta1
-            Gamma[0,5]=-sq_A*sin_theta1
-            Gamma[1,4]=sq_A*sin_theta1
-            Gamma[0,2]=Gamma[1,3]=kind[0]*A*sin_theta1_theta2
-            Gamma[2,6]=Gamma[3,7]=sq_A*cos_theta2
-            Gamma[2,7]=-sq_A*sin_theta2
-            Gamma[3,6]=sq_A*sin_theta2
-        else:
-            raise ValueError(f'kind {kind} not defined')
-        return (Gamma-Gamma.T)
     
-    def op_class_AIII_unitary(self,A,theta1,theta2,kind):
-        """in onenote, A= tanh(\alpha)"""
-        Gamma=np.zeros((16,16),dtype=float)
-        assert 0<=A<=1, "A should be within [0,1]"
-        sq_A=np.sqrt(1-A**2)
-        cos_theta1,sin_theta1=np.cos(theta1),np.sin(theta1)
-        cos_theta2,sin_theta2=np.cos(theta2),np.sin(theta2)
-        cos_2_theta1_2, sin_2_theta1_2 = np.cos(theta1/2)**2, np.sin(theta1/2)**2
-        cos_2_theta2_2, sin_2_theta2_2 = np.cos(theta2/2)**2, np.sin(theta2/2)**2
-        cos_theta1_2, sin_theta1_2 = np.cos(theta1/2), np.sin(theta1/2)
-        cos_theta2_2, sin_theta2_2 = np.cos(theta2/2), np.sin(theta2/2)
-        if kind == (1,1) or kind == (-1,-1):
-            s=kind[0]
-            # in,in
-            Gamma[0,1]=s*cos_2_theta1_2*A
-            Gamma[2,3]=s*sin_2_theta2_2*A
-            Gamma[4,5]=s*sin_2_theta1_2*A
-            Gamma[6,7]=s*cos_2_theta2_2*A
-            Gamma[0,4]=Gamma[1,5]=-s*sin_theta1/2 * A
-            Gamma[2,6]=Gamma[3,7]=s*sin_theta2/2 * A
-            # out,out
-            Gamma[8,9]=Gamma[14,15]=-s*A
-            # in,out
-            Gamma[0,8]=Gamma[1,9]=cos_theta1_2 * sq_A
-            Gamma[2,10]=Gamma[3,11]=cos_theta2_2
-            Gamma[4,12]=Gamma[5,13]=cos_theta1_2
-            Gamma[6,14]=Gamma[7,15]=cos_theta2_2 * sq_A
-            Gamma[0,13]=-sin_theta1_2
-            Gamma[1,12]=sin_theta1_2
-            Gamma[2,15]=-sin_theta2_2 * sq_A
-            Gamma[3,14]=sin_theta2_2 * sq_A
-            Gamma[5,8]=sin_theta1_2 * sq_A
-            Gamma[4,9]=-sin_theta1_2 * sq_A
-            Gamma[6,11]=-sin_theta2_2
-            Gamma[7,10]=sin_theta2_2
-        elif kind == (-1,1) or kind == (1,-1):
-            s=kind[0]
-            # in,in
-            Gamma[0,2]=Gamma[1,3]=-s*sin_theta2_2 * cos_theta1_2 * A
-            Gamma[4,6]=Gamma[5,7]=s*sin_theta1_2 * cos_theta2_2 * A
-            Gamma[0,7]= s* cos_theta1_2 * cos_theta2_2 * A
-            Gamma[1,6]= -s*cos_theta1_2 * cos_theta2_2 * A
-            Gamma[2,5]= s*sin_theta1_2 * sin_theta2_2 * A
-            Gamma[3,4]= -s*sin_theta1_2 * sin_theta2_2 * A
+    
 
-            # out,out
-            Gamma[8,15]=-s*A
-            Gamma[9,14]=s*A
 
-            # in,out
-            Gamma[0,8]=Gamma[1,9]=cos_theta1_2 * sq_A
-            Gamma[2,10]=Gamma[3,11]=cos_theta2_2 
-            Gamma[4,12]=Gamma[5,13]=cos_theta1_2
-            Gamma[6,14]=Gamma[7,15]=cos_theta2_2 * sq_A
-            Gamma[0,13]=-sin_theta1_2 
-            Gamma[1,12]=sin_theta1_2
-            Gamma[2,15]=-sin_theta2_2 * sq_A
-            Gamma[3,14]=sin_theta2_2 * sq_A
-            Gamma[5,8]=sin_theta1_2 * sq_A
-            Gamma[4,9]=-sin_theta1_2 * sq_A
-            Gamma[6,11]=-sin_theta2_2
-            Gamma[7,10]=sin_theta2_2
+    
+
+
+    def apply_charge_transfer(self,ix):
+        """ Majorana site index for ix, transfer from ix[2:] to ix[:2] """
+        Psi=self.C_m
+        ix_bar=np.array(list(self.full_ix-set(ix)))
+        proj=op_charge_transfer()
+        P_contraction_2(Psi,proj,ix,ix_bar,self.Gamma_like,reset_Gamma_like=False)
+        if self.history:
+            self.C_m_history.append(Psi.copy())
+            self.n_history.append([])
+            self.i_history.append(ix)
+            # self.MI_history.append(self.mutual_information_cross_ratio())
         else:
-            raise ValueError(f'kind {kind} not defined')
-        return (Gamma-Gamma.T)
-
-
+            # self.C_m_history=[Psi]
+            self.n_history=[]
+            self.i_history=[ix]
+            # self.MI_history=[self.mutual_information_cross_ratio()]
+    
+    
 
     def measure_class_AIII(self,A,theta1,theta2,kind,ix,):
         ''' Majorana site index for ix'''
         assert len(ix)==4, 'len of ix should be 4'
         Psi=self.C_m
         ix_bar=np.array(list(self.full_ix-set(ix)))
-        proj=self.op_class_AIII(A,theta1,theta2,kind)
+        proj=op_class_AIII(A,theta1,theta2,kind)
         P_contraction_2(Psi,proj,ix,ix_bar,self.Gamma_like,reset_Gamma_like=False)
         if self.history:
             self.C_m_history.append(Psi.copy())
@@ -241,7 +166,7 @@ class GTN:
         assert len(ix)==8, 'len of ix should be 8'
         Psi=self.C_m
         ix_bar=np.array(list(self.full_ix-set(ix)))
-        proj=self.op_class_AIII_unitary(A,theta1,theta2,kind)
+        proj=op_class_AIII_unitary(A,theta1,theta2,kind)
         P_contraction_2(Psi,proj,ix,ix_bar,self.Gamma_like,reset_Gamma_like=True)
         if self.history:
             self.C_m_history.append(Psi.copy())
@@ -280,6 +205,56 @@ class GTN:
                 self.measure_class_AIII(A=A,theta1=theta1,theta2=theta2,kind=kind,ix=legs)
         else:
             pass
+    def measure_projection_AIII(self,legs):
+        """ix is the 2 fermionic site index,perform the strong projective measurement"""
+        Gamma = self.C_m[np.ix_(legs,legs)]
+        kind,_,_=get_Born_class_AIII(A=1,Gamma=Gamma,rng=self.rng,class_A=False,)
+        self.measure_class_AIII(A=1,theta1=0,theta2=0,kind=kind,ix=legs)
+        return kind
+    
+    def state_transfer(self,ix,source,target):
+        """ Majorana site index for ix"""
+        Psi=self.C_m
+        ix_bar=np.array(list(self.full_ix-set(ix)))
+        op=op_state_transfer(source,target)
+        P_contraction_2(Psi,op,ix,ix_bar,self.Gamma_like,reset_Gamma_like=True)
+        if self.history:
+            self.C_m_history.append(Psi.copy())
+            self.n_history.append([(source,target)])
+            self.i_history.append(ix)
+        else:
+            self.n_history=[(source,target)]
+            self.i_history=[ix]
+
+    
+    def measure_feedback_AIII(self,ix):
+        """ix is the 2 fermionic site index
+        this can be used to incorporate feedback"""
+        legs_t = [2*ix[0],(2*ix[0]+1)%(2*self.L),(2*ix[1])%(2*self.L),(2*ix[1]+1)%(2*self.L),]
+        legs_b = [leg+2*self.L for leg in legs_t]
+        outcome_t=self.measure_projection_AIII(legs_t)
+        if outcome_t == (-1,1):
+            pass
+            # this is good, 
+        elif outcome_t == (1,-1):
+            # need to fix it by depleting the upper band, and fill the lower band
+            outcome_b=self.measure_projection_AIII(legs_b)
+            if outcome_b == (-1,1):
+                pass
+            elif outcome_b == (1,-1):
+                pass
+        elif outcome_t == (1,1):
+            # both occupied, just depleting the upper band
+            pass
+        elif outcome_t == (-1,-1):
+            # both empty, just fill the lower band
+            outcome_b=self.measure_projection_AIII(legs_b)
+            if outcome_b == (-1,1):
+                self.state_transfer(legs_t+legs_b,source='-b',target='-t')
+            
+                
+
+
 
     def measure_all_class_AIII_r_unified(self,A_list,r_list,Born=True,class_A=False,even=True,):
         """use a unified language, where even is always iA and i+r,B, and odd is iB and i+r+1,A"""
@@ -397,7 +372,7 @@ class GTN:
         for i,j, n in zip(proj_range_1,proj_range_2,n_list):
             self.measure(n,[i,j])
 
-    def measure_all_tri_op(self,p_list,Born=False,even=True):
+    def measure_all_tri_op(self,p_list,Born=False,even=True,alpha=1):
         '''The Kraus operator is composed of only three in circuit DIII
         sqrt(1-p) exp(i*phi* i* gamma_i * gamma_i+1), phi ~ U[0,2pi]; n=(0,cos(phi),sin(phi))
         sqrt(p) (1+i* gamma_i * gamma_i+1)/2; n=(-1,0,0)
@@ -420,7 +395,7 @@ class GTN:
         if Born:
             for i,j,p in zip(proj_range_1,proj_range_2,p_list):
                 Gamma=self.C_m[[i],[j]]
-                n_list=get_Born_tri_op(p,Gamma,rng=self.rng)
+                n_list=get_Born_tri_op(p,Gamma,rng=self.rng,alpha=alpha)
                 if not self.pbc and not even and i==proj_range_1[-1]:
                     continue
                 self.measure(n_list[0],[i,j])
@@ -433,6 +408,39 @@ class GTN:
                     n[0]=-n[0]
                     # This is a workaround to let it run, however, in forced measurement, the strong projection is problematic, as it can sometimes vanish the state
                     self.measure(n,[i,j])
+
+    def measure_all_tri_op_3(self,alpha_list,Born=False,sigma=1):
+        '''The Kraus operator is exp(i * alpha * gamma[0] * gamma[1]) * exp(i * alpha * gamma[1] * gamma[2])
+        '''
+        proj_range_0=np.arange(self.L*2)
+        # Why do you want to change the system sites to the later part?
+        # proj_range_1=proj_range if not self.op else proj_range+2* self.L
+        # proj_range_2=(proj_range+1)%(2*self.L) if not self.op else (proj_range+1)%(2*self.L) + 2*self.L
+        proj_range_1=(proj_range_0+1)%(2*self.L)
+        proj_range_2=(proj_range_0+2)%(2*self.L)
+        if isinstance(alpha_list, int) or isinstance(alpha_list, float):
+            alpha_list=np.array([alpha_list]*len(proj_range_1))
+        if self.history:
+            self.p_history.append(alpha_list)
+        else:
+            self.p_history=[alpha_list]
+        if Born:
+            for idx in range(len(proj_range_0)):
+                Gamma01=self.C_m[proj_range_0[idx],proj_range_1[idx]]
+                Gamma12=self.C_m[proj_range_1[idx],proj_range_2[idx]]
+                n1, n2_01 , n3_01, n2_12, n3_12 = get_Born_tri_op_3(alpha_list[idx],Gamma01, Gamma12, rng=self.rng,sigma=sigma)
+                self.measure([n1,n2_12, n3_12],[proj_range_1[idx],proj_range_2[idx]])
+                self.measure([n1,n2_01, n3_01],[proj_range_0[idx],proj_range_1[idx]])
+
+        else:
+            for idx in range(len(proj_range_0)):
+                # print(idx)
+                _, n2_01 , n3_01, n2_12, n3_12 = get_Born_tri_op_3(alpha_list[idx],0, 0, rng=self.rng,sigma=sigma)
+                self.measure([alpha_list[idx],n2_12, n3_12],[proj_range_1[idx],proj_range_2[idx]])
+                self.measure([alpha_list[idx],n2_01, n3_01],[proj_range_0[idx],proj_range_1[idx]])
+
+
+
     def measure_all_tri_op_D(self,p_list,r_list,Born=True,even=True,sigma=1,eps_=1e-10):
         '''The Kraus operator is composed of only three in circuit D-- with BDI as state
         sqrt(1-p) exp(i*phi_1* i* gamma_{iA} * gamma_{jA})exp(i*phi_2* i* gamma_{iB} * gamma_{jB}), phi ~ U[0,2pi]; n=(0,cos(phi),sin(phi))
@@ -652,13 +660,26 @@ def get_random_tri_op(p,num,rng=None):
     n2,n3=get_inplane_norm(n1, num,rng=rng,sigma=np.pi/10)
     return np.c_[n1,n2,n3]
 
-def get_Born_tri_op(p,Gamma,rng=None,sigma=1):
+def get_Born_tri_op(p,Gamma,rng=None,sigma=1,alpha=1):
+    """sigma attenuate the variance of unitary, alpha suppress the strength of measurement"""
     num=Gamma.shape[0]
     rng=np.random.default_rng(rng)
     sign=rng.random(size=num)
     n1= (sign<p*(1+Gamma)/2)*(-1)+(sign>p*(1+Gamma)/2+1-p)
+    n1 = n1* alpha
     n2,n3=get_inplane(n1, num,rng=rng,sigma=sigma)
     return np.c_[n1,n2,n3]
+
+def get_Born_tri_op_3(alpha,Gamma01,Gamma12,rng=None,sigma=1):
+    rng=np.random.default_rng(rng)
+    prob = 1/(2*np.cosh(2*alpha)**2) * (np.cosh(2*alpha)**2 + np.sinh(2*alpha) * np.cosh(2*alpha) * Gamma01 + np.sinh(2*alpha) * Gamma12)
+    print(prob)
+    sign = rng.random()
+    n1 = (sign < prob) * np.tanh(alpha) + (sign>prob) * (-np.tanh(alpha))
+    n2_01,n3_01=get_inplane(n1, 1,rng=rng,sigma=sigma)
+    n2_12,n3_12=get_inplane(n1, 1,rng=rng,sigma=sigma)
+    return n1, n2_01[0] , n3_01[0], n2_12[0], n3_12[0]
+
 
 def get_Born_class_AIII(A,Gamma,class_A=False,rng=None):
     rng=np.random.default_rng(rng)
@@ -1042,4 +1063,121 @@ def find_other_leg(parity_dict,ij):
         if i in x or j in x:
             other_leg_list.append(x)
     return other_leg_list
+
+def op_class_AIII(A,theta1,theta2,kind):
+    """in the onenote, A= tanh(alpha), 
+    alpha<inf is weak measurement, alpha=inf is strong projection
+    this is for onsite unitary,
+    (1,1) and (-1,-1) are full (|11>) and empty (|00>) state,
+    (1,-1) and (-1,1) are c_+^dag|0> and c_-^dag|0>, where c_+= 1/sqrt(2)*(c_A^dag+c_B^dag)"""
+    Gamma=np.zeros((8,8),dtype=float)
+    assert 0<=A<=1, "A should be within [0,1]"
+    sq_A=np.sqrt(1-A**2)
+    cos_theta1,sin_theta1=np.cos(theta1),np.sin(theta1)
+    cos_theta2,sin_theta2=np.cos(theta2),np.sin(theta2)
+    if kind == (1,1) or kind == (-1,-1):
+        Gamma[0,1]=Gamma[2,3]=kind[0]*A
+        Gamma[4,5]=Gamma[6,7]=-kind[0]*A
+        Gamma[0,4]=Gamma[1,5]=sq_A*cos_theta1
+        Gamma[0,5]=-sq_A*sin_theta1
+        Gamma[1,4]=sq_A*sin_theta1
+        Gamma[2,6]=Gamma[3,7]=sq_A*cos_theta2
+        Gamma[2,7]=-sq_A*sin_theta2
+        Gamma[3,6]=sq_A*sin_theta2
+    elif kind == (-1,1) or kind == (1,-1):
+        cos_theta1_theta2,sin_theta1_theta2=np.cos(theta1-theta2),np.sin(theta1-theta2)
+        Gamma[0,3]=kind[0]*A*cos_theta1_theta2
+        Gamma[5,6]=kind[0]*A
+        Gamma[1,2]=-kind[0]*A*cos_theta1_theta2
+        Gamma[4,7]=-kind[0]*A
+        Gamma[0,4]=Gamma[1,5]=sq_A*cos_theta1
+        Gamma[0,5]=-sq_A*sin_theta1
+        Gamma[1,4]=sq_A*sin_theta1
+        Gamma[0,2]=Gamma[1,3]=kind[0]*A*sin_theta1_theta2
+        Gamma[2,6]=Gamma[3,7]=sq_A*cos_theta2
+        Gamma[2,7]=-sq_A*sin_theta2
+        Gamma[3,6]=sq_A*sin_theta2
+    else:
+        raise ValueError(f'kind {kind} not defined')
+    return (Gamma-Gamma.T)
+
+
+def op_class_AIII_unitary(A,theta1,theta2,kind):
+    """in onenote, A= tanh(alpha),
+    this is for the nonlocal unitary,
+    see convention in `op_class_AIII`"""
+    Gamma=np.zeros((16,16),dtype=float)
+    assert 0<=A<=1, "A should be within [0,1]"
+    sq_A=np.sqrt(1-A**2)
+    cos_theta1,sin_theta1=np.cos(theta1),np.sin(theta1)
+    cos_theta2,sin_theta2=np.cos(theta2),np.sin(theta2)
+    cos_2_theta1_2, sin_2_theta1_2 = np.cos(theta1/2)**2, np.sin(theta1/2)**2
+    cos_2_theta2_2, sin_2_theta2_2 = np.cos(theta2/2)**2, np.sin(theta2/2)**2
+    cos_theta1_2, sin_theta1_2 = np.cos(theta1/2), np.sin(theta1/2)
+    cos_theta2_2, sin_theta2_2 = np.cos(theta2/2), np.sin(theta2/2)
+    if kind == (1,1) or kind == (-1,-1):
+        s=kind[0]
+        # in,in
+        Gamma[0,1]=s*cos_2_theta1_2*A
+        Gamma[2,3]=s*sin_2_theta2_2*A
+        Gamma[4,5]=s*sin_2_theta1_2*A
+        Gamma[6,7]=s*cos_2_theta2_2*A
+        Gamma[0,4]=Gamma[1,5]=-s*sin_theta1/2 * A
+        Gamma[2,6]=Gamma[3,7]=s*sin_theta2/2 * A
+        # out,out
+        Gamma[8,9]=Gamma[14,15]=-s*A
+        # in,out
+        Gamma[0,8]=Gamma[1,9]=cos_theta1_2 * sq_A
+        Gamma[2,10]=Gamma[3,11]=cos_theta2_2
+        Gamma[4,12]=Gamma[5,13]=cos_theta1_2
+        Gamma[6,14]=Gamma[7,15]=cos_theta2_2 * sq_A
+        Gamma[0,13]=-sin_theta1_2
+        Gamma[1,12]=sin_theta1_2
+        Gamma[2,15]=-sin_theta2_2 * sq_A
+        Gamma[3,14]=sin_theta2_2 * sq_A
+        Gamma[5,8]=sin_theta1_2 * sq_A
+        Gamma[4,9]=-sin_theta1_2 * sq_A
+        Gamma[6,11]=-sin_theta2_2
+        Gamma[7,10]=sin_theta2_2
+    elif kind == (-1,1) or kind == (1,-1):
+        s=kind[0]
+        # in,in
+        Gamma[0,2]=Gamma[1,3]=-s*sin_theta2_2 * cos_theta1_2 * A
+        Gamma[4,6]=Gamma[5,7]=s*sin_theta1_2 * cos_theta2_2 * A
+        Gamma[0,7]= s* cos_theta1_2 * cos_theta2_2 * A
+        Gamma[1,6]= -s*cos_theta1_2 * cos_theta2_2 * A
+        Gamma[2,5]= s*sin_theta1_2 * sin_theta2_2 * A
+        Gamma[3,4]= -s*sin_theta1_2 * sin_theta2_2 * A
+
+        # out,out
+        Gamma[8,15]=-s*A
+        Gamma[9,14]=s*A
+
+        # in,out
+        Gamma[0,8]=Gamma[1,9]=cos_theta1_2 * sq_A
+        Gamma[2,10]=Gamma[3,11]=cos_theta2_2 
+        Gamma[4,12]=Gamma[5,13]=cos_theta1_2
+        Gamma[6,14]=Gamma[7,15]=cos_theta2_2 * sq_A
+        Gamma[0,13]=-sin_theta1_2 
+        Gamma[1,12]=sin_theta1_2
+        Gamma[2,15]=-sin_theta2_2 * sq_A
+        Gamma[3,14]=sin_theta2_2 * sq_A
+        Gamma[5,8]=sin_theta1_2 * sq_A
+        Gamma[4,9]=-sin_theta1_2 * sq_A
+        Gamma[6,11]=-sin_theta2_2
+        Gamma[7,10]=sin_theta2_2
+    else:
+        raise ValueError(f'kind {kind} not defined')
+    return (Gamma-Gamma.T)
+
+def op_charge_transfer():
+    """ c_i^dag c_j"""
+    Gamma=np.zeros((8,8),dtype=float)
+    Gamma[1,0]=Gamma[5,4]=Gamma[2,3]=Gamma[6,7]=1
+    return (Gamma-Gamma.T)
+
+def op_state_transfer(source,target):
+    """ transfer from source to target:
+    ('+b','-b','+t','-t')"""
+    pass
 # %%

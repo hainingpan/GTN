@@ -66,7 +66,7 @@ def get_Gamma(op_dm,dim,normalize=True):
             Gamma[i,j]=matel
             Gamma[j,i]=-matel
     if normalize:
-        norm=np.sqrt(-(Gamma@Gamma)[0,0])
+        norm=sqrt(-(Gamma@Gamma)[0,0])
         Gamma=Gamma/norm
     return Gamma
 

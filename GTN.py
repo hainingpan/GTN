@@ -206,13 +206,34 @@ class GTN:
         else:
             pass
     def measure_projection_AIII(self,legs):
-        """ix is the 2 fermionic site index,perform the strong projective measurement"""
+        """legs is the 2 majorana site index,perform the strong projective measurement"""
         Gamma = self.C_m[np.ix_(legs,legs)]
         kind,_,_=get_Born_class_AIII(A=1,Gamma=Gamma,rng=self.rng,class_A=False,)
         self.measure_class_AIII(A=1,theta1=0,theta2=0,kind=kind,ix=legs)
         return kind
+
+    def measure_charge(self,legs):
+        ''' legs is the majorana site index, 
+        for measuring charge,
+        n_list[0]= -1 : empty state/even parity
+        n_list[0]= 1 : occupied state/odd parity
+        '''
+        Gamma = self.C_m[[legs[0]],[legs[1]]]
+        n_list=get_Born_tri_op(p=1,Gamma=Gamma,rng=self.rng,alpha=1)
+        self.measure(n_list[0],ix=legs)
+        return n_list[0][0]
     
-    def state_transfer(self,ix,source,target):
+    def randomize(self,legs):
+        """ legs is the majorana site index, 
+        simply randomize the parity"""
+        n_list=get_Born_tri_op(p=0,Gamma=np.array([0]),rng=self.rng,alpha=1)
+        self.measure(n_list[0],ix=legs)
+        return n_list[0][0]
+
+
+
+    
+    def state_transfer(self,ix,source=None,target=None):
         """ Majorana site index for ix"""
         Psi=self.C_m
         ix_bar=np.array(list(self.full_ix-set(ix)))
@@ -220,37 +241,60 @@ class GTN:
         P_contraction_2(Psi,op,ix,ix_bar,self.Gamma_like,reset_Gamma_like=True)
         if self.history:
             self.C_m_history.append(Psi.copy())
-            self.n_history.append([(source,target)])
+            self.n_history.append([source,target])
             self.i_history.append(ix)
         else:
-            self.n_history=[(source,target)]
+            self.n_history=[source,target]
             self.i_history=[ix]
 
     
-    def measure_feedback_AIII(self,ix):
+    def measure_feedback_AIII(self,ix,feedback=True):
         """ix is the 2 fermionic site index
         this can be used to incorporate feedback"""
         legs_t = [2*ix[0],(2*ix[0]+1)%(2*self.L),(2*ix[1])%(2*self.L),(2*ix[1]+1)%(2*self.L),]
-        legs_b = [leg+2*self.L for leg in legs_t]
+        legs_bB = [leg+self.L for leg in legs_t[:2]]
+        legs_bA = [leg+self.L for leg in legs_t[2:]]
+        print(legs_bB,legs_bA)
         outcome_t=self.measure_projection_AIII(legs_t)
-        if outcome_t == (-1,1):
-            pass
-            # this is good, 
-        elif outcome_t == (1,-1):
-            # need to fix it by depleting the upper band, and fill the lower band
-            outcome_b=self.measure_projection_AIII(legs_b)
-            if outcome_b == (-1,1):
+        if feedback:
+            if outcome_t == (-1,1):
+                # this is good
                 pass
-            elif outcome_b == (1,-1):
-                pass
-        elif outcome_t == (1,1):
-            # both occupied, just depleting the upper band
-            pass
-        elif outcome_t == (-1,-1):
-            # both empty, just fill the lower band
-            outcome_b=self.measure_projection_AIII(legs_b)
-            if outcome_b == (-1,1):
-                self.state_transfer(legs_t+legs_b,source='-b',target='-t')
+            elif outcome_t == (1,-1):
+                # need to fix it by depleting the upper band to lower band
+                self.state_transfer(legs_t,source='+t',target='-t')
+            elif outcome_t == (1,1):
+                # both occupied, just depleting the upper band
+                outcome_bA=self.measure_charge(legs_bA)
+                if outcome_bA ==-1:
+                    # A on bottom is empty
+                    self.state_transfer(legs_t+legs_bA,source='+t')
+                elif outcome_bA==1:
+                    outcome_bB=self.measure_charge(legs_bB)
+                    if outcome_bB == -1:
+                        # B on bottom is empty
+                        self.state_transfer(legs_t+legs_bB,source='+t')
+                    else:
+                        # B on bottom is not empty, cannot depelete
+                        pass
+                    
+            elif outcome_t == (-1,-1):
+                # both top empty, just fill the lower band
+                outcome_bB=self.measure_charge(legs_bB)
+                if outcome_bB == 1:
+                    # B on bottom not empty
+                    self.state_transfer(legs_t+legs_bB,target='-t')
+                elif outcome_bB == -1:
+                    # B on bottom is empty
+                    outcome_bA=self.measure_charge(legs_bA)
+                    if outcome_bA ==1:
+                        # A on bottom is not empty
+                        self.state_transfer(legs_t+legs_bA,target='-t')
+                    else:
+                        # A on bottom is empty, fix failed
+                        pass
+                    
+                
             
                 
 
@@ -1179,5 +1223,49 @@ def op_charge_transfer():
 def op_state_transfer(source,target):
     """ transfer from source to target:
     ('+b','-b','+t','-t')"""
-    pass
-# %%
+    assert not (source is None and target is None), 'source and target cannot be both None'
+    if source is None and target is not None:
+        if target == '-t':
+            Gamma=np.zeros((12,12),dtype=float)
+            # Gamma[0,1]=Gamma[2,3]=-1
+            # Gamma[4,5]=1
+            # Gamma[6,9]=Gamma[10,11]=1
+            # Gamma[7,8]=-1
+
+            Gamma[4,5]=Gamma[10,11]=1
+            Gamma[0,1]=Gamma[1,2]=Gamma[2,3]=-1/2
+            Gamma[0,3]=1/2
+            Gamma[0,6]=Gamma[1,7]=Gamma[2,8]=Gamma[3,9]=Gamma[0,8]=Gamma[1,9]=Gamma[2,6]=Gamma[3,7]=1/2
+            Gamma[6,7]=Gamma[7,8]=Gamma[8,9]=-1/2
+            Gamma[6,9]=1/2
+
+            return Gamma-Gamma.T
+        raise ValueError(f'target {target} not defined')
+
+    if source is not None and target is None:
+        if source == '+t':
+            Gamma=np.zeros((12,12),dtype=float)
+            # Gamma[0,3]=1
+            # Gamma[1,2]=Gamma[4,5]=-1
+            # Gamma[6,7]=Gamma[8,9]=1
+            # Gamma[10,11]=-1
+
+            Gamma[4,5]=Gamma[10,11]=-1
+            Gamma[0,1]=Gamma[0,3]=Gamma[2,3]=1/2
+            Gamma[1,2]=-1/2
+            Gamma[0,6]=Gamma[1,7]=Gamma[2,8]=Gamma[3,9]=1/2
+            Gamma[0,8]=Gamma[1,9]=Gamma[2,6]=Gamma[3,7]=-1/2
+            Gamma[6,7]=Gamma[6,9]=Gamma[8,9]=1/2
+            Gamma[7,8]=-1/2
+
+            return Gamma-Gamma.T
+        raise ValueError(f'source {source} not defined')
+    if source is not None and target is not None:
+        if source == '+t' and target == '-t':
+            Gamma=np.zeros((8,8),dtype=float)
+            Gamma[0,3]=Gamma[4,7]=1
+            Gamma[1,2]=Gamma[5,6]=-1
+            return Gamma-Gamma.T
+        raise ValueError(f'source {source} and target {target} not defined')
+
+

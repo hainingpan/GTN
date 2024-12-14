@@ -1214,12 +1214,6 @@ def find_other_leg(parity_dict,ij):
     
 def op_single_mode(kind):
     mode, n = kind
-    # if mode == '+':
-    #     u = [1,1]
-    # elif mode == '-':
-    #     u = [1,-1]
-    # else:
-    #     raise ValueError(f"mode with {mode} in class AIII single is not implemented")
     return Gamma_othor(u=mode,epsilon11=np.array([[0,2*n-1],[1-2*n,0]]),epsilon12=np.zeros((2,2)))
 
 def op_class_AIII(A,theta1,theta2,kind):
@@ -1434,5 +1428,5 @@ def get_Born(Gamma,u):
     u = np.array(u)/np.linalg.norm(u)
     n = u@C_f@u.conj()
     assert np.abs(n.imag)<1e-10, f'number density is not real {n.imag.max()}'
-    return n
+    return n.real
 

@@ -141,7 +141,23 @@ class GTN:
             self.i_history=[ix]
             # self.MI_history=[self.mutual_information_cross_ratio()]
     
-    
+    def measure_single_mode_force(self,kind,ix,):
+        ''' Majorana site index for ix'''
+        assert len(ix)==len(kind[0])*2, 'len of ix should be 2*len(kind[0])'
+        Psi=self.C_m
+        ix_bar=np.array(list(self.full_ix-set(ix)))
+        proj=op_single_mode(kind)
+        P_contraction_2(Psi,proj,ix,ix_bar,self.Gamma_like,reset_Gamma_like=False)
+        if self.history:
+            self.C_m_history.append(Psi.copy())
+            self.n_history.append(kind)
+            self.i_history.append(ix)
+            # self.MI_history.append(self.mutual_information_cross_ratio())
+        else:
+            # self.C_m_history=[Psi]
+            self.n_history=[kind]
+            self.i_history=[ix]
+            # self.MI_history=[self.mutual_information_cross_ratio()]
 
     def measure_class_AIII(self,A,theta1,theta2,kind,ix,):
         ''' Majorana site index for ix'''
@@ -211,17 +227,32 @@ class GTN:
         kind,_,_=get_Born_class_AIII(A=1,Gamma=Gamma,rng=self.rng,class_A=False,)
         self.measure_class_AIII(A=1,theta1=0,theta2=0,kind=kind,ix=legs)
         return kind
+    
+    def measure_single_mode_Born(self,legs,mode):
+        """measure the single mode |pm > = 1/sqrt(2) (c_1^dag pm c_2^dag), where 1 and 2 are legs[:2] and legs[2:4]
+        The difference between measure_projection_AIII and this and  is that the former requires to measure both mode of |+> and |-> in one step"""
+        Gamma = self.C_m[np.ix_(legs,legs)]
+        n = get_Born_single_mode(Gamma=Gamma,mode=mode,rng=self.rng)
+        self.measure_single_mode_force(kind=(mode,n),ix=legs)
+        return (mode,n)
 
-    def measure_charge(self,legs):
-        ''' legs is the majorana site index, 
-        for measuring charge,
-        n_list[0]= -1 : empty state/even parity
-        n_list[0]= 1 : occupied state/odd parity
-        '''
-        Gamma = self.C_m[[legs[0]],[legs[1]]]
-        n_list=get_Born_tri_op(p=1,Gamma=Gamma,rng=self.rng,alpha=1)
-        self.measure(n_list[0],ix=legs)
-        return n_list[0][0]
+
+
+
+    # def measure_charge(self,legs):
+    #     ''' legs is the majorana site index, 
+    #     for measuring charge,
+    #     n_list[0]= -1 : empty state/even parity
+    #     n_list[0]= 1 : occupied state/odd parity
+    #     return number density as (1+n_list[0])/2
+    #     '''
+    #     # Gamma = self.C_m[[legs[0]],[legs[1]]]
+    #     Gamma = self.C_m[np.ix_(legs,legs)]
+    #     # n_list=get_Born_tri_op(p=1,Gamma=Gamma,rng=self.rng,alpha=1)
+    #     n = get_Born_charge(Gamma=Gamma,rng=self.rng)
+    #     # self.measure(n_list[0],ix=legs)
+    #     self.measure_single_mode_force(kind = ([1],n),ix=legs)
+    #     return n
     
     def randomize(self,legs):
         """ legs is the majorana site index, 
@@ -233,21 +264,83 @@ class GTN:
 
 
     
-    def state_transfer(self,ix,source=None,target=None):
-        """ Majorana site index for ix"""
+    # def state_transfer(self,ix,source=None,target=None):
+    #     """ Majorana site index for ix"""
+    #     Psi=self.C_m
+    #     ix_bar=np.array(list(self.full_ix-set(ix)))
+    #     op=op_state_transfer(source,target)
+    #     P_contraction_2(Psi,op,ix,ix_bar,self.Gamma_like,reset_Gamma_like=True)
+    #     if self.history:
+    #         self.C_m_history.append(Psi.copy())
+    #         self.n_history.append([source,target])
+    #         self.i_history.append(ix)
+    #     else:
+    #         self.n_history=[source,target]
+    #         self.i_history=[ix]
+
+    def fSWAP(self,ix,state1=None,state2=None):
+        """ Majorana site index for ix ,exp(i*pi*c_-^dag c_-)"""
         Psi=self.C_m
         ix_bar=np.array(list(self.full_ix-set(ix)))
-        op=op_state_transfer(source,target)
+        op=op_fSWAP(state1,state2)
         P_contraction_2(Psi,op,ix,ix_bar,self.Gamma_like,reset_Gamma_like=True)
         if self.history:
             self.C_m_history.append(Psi.copy())
-            self.n_history.append([source,target])
+            self.n_history.append([state1,state2])
             self.i_history.append(ix)
         else:
-            self.n_history=[source,target]
+            self.n_history=[state1,state2]
             self.i_history=[ix]
 
     
+    # def measure_feedback_AIII(self,ix,feedback=True):
+    #     """ix is the 2 fermionic site index
+    #     this can be used to incorporate feedback"""
+    #     legs_t = [2*ix[0],(2*ix[0]+1)%(2*self.L),(2*ix[1])%(2*self.L),(2*ix[1]+1)%(2*self.L),]
+    #     legs_bB = [leg+self.L for leg in legs_t[:2]]
+    #     legs_bA = [leg+self.L for leg in legs_t[2:]]
+    #     print(legs_bB,legs_bA)
+    #     outcome_t=self.measure_projection_AIII(legs_t)
+    #     if feedback:
+    #         if outcome_t == (-1,1):
+    #             # this is good
+    #             pass
+    #         elif outcome_t == (1,-1):
+    #             # need to fix it by depleting the upper band to lower band
+    #             self.state_transfer(legs_t,source='+t',target='-t')
+    #             # self.fSWAP(legs_t,source='+t',target='-t')
+    #         elif outcome_t == (1,1):
+    #             # both occupied, just depleting the upper band
+    #             outcome_bA=self.measure_charge(legs_bA)
+    #             if outcome_bA ==-1:
+    #                 # A on bottom is empty
+    #                 self.state_transfer(legs_t+legs_bA,source='+t')
+    #             elif outcome_bA==1:
+    #                 outcome_bB=self.measure_charge(legs_bB)
+    #                 if outcome_bB == -1:
+    #                     # B on bottom is empty
+    #                     self.state_transfer(legs_t+legs_bB,source='+t')
+    #                 else:
+    #                     # B on bottom is not empty, cannot depelete
+    #                     pass
+                    
+    #         elif outcome_t == (-1,-1):
+    #             # both top empty, just fill the lower band
+    #             outcome_bB=self.measure_charge(legs_bB)
+    #             if outcome_bB == 1:
+    #                 # B on bottom not empty
+    #                 self.state_transfer(legs_t+legs_bB,target='-t')
+    #             elif outcome_bB == -1:
+    #                 # B on bottom is empty
+    #                 outcome_bA=self.measure_charge(legs_bA)
+    #                 if outcome_bA ==1:
+    #                     # A on bottom is not empty
+    #                     self.state_transfer(legs_t+legs_bA,target='-t')
+    #                 else:
+    #                     # A on bottom is empty, fix failed
+    #                     pass
+                    
+                
     def measure_feedback_AIII(self,ix,feedback=True):
         """ix is the 2 fermionic site index
         this can be used to incorporate feedback"""
@@ -255,48 +348,49 @@ class GTN:
         legs_bB = [leg+self.L for leg in legs_t[:2]]
         legs_bA = [leg+self.L for leg in legs_t[2:]]
         print(legs_bB,legs_bA)
-        outcome_t=self.measure_projection_AIII(legs_t)
-        if feedback:
-            if outcome_t == (-1,1):
-                # this is good
-                pass
-            elif outcome_t == (1,-1):
-                # need to fix it by depleting the upper band to lower band
-                self.state_transfer(legs_t,source='+t',target='-t')
-            elif outcome_t == (1,1):
-                # both occupied, just depleting the upper band
-                outcome_bA=self.measure_charge(legs_bA)
-                if outcome_bA ==-1:
-                    # A on bottom is empty
-                    self.state_transfer(legs_t+legs_bA,source='+t')
-                elif outcome_bA==1:
-                    outcome_bB=self.measure_charge(legs_bB)
-                    if outcome_bB == -1:
-                        # B on bottom is empty
-                        self.state_transfer(legs_t+legs_bB,source='+t')
-                    else:
-                        # B on bottom is not empty, cannot depelete
-                        pass
-                    
-            elif outcome_t == (-1,-1):
-                # both top empty, just fill the lower band
-                outcome_bB=self.measure_charge(legs_bB)
-                if outcome_bB == 1:
-                    # B on bottom not empty
-                    self.state_transfer(legs_t+legs_bB,target='-t')
-                elif outcome_bB == -1:
-                    # B on bottom is empty
-                    outcome_bA=self.measure_charge(legs_bA)
-                    if outcome_bA ==1:
-                        # A on bottom is not empty
-                        self.state_transfer(legs_t+legs_bA,target='-t')
-                    else:
-                        # A on bottom is empty, fix failed
-                        pass
-                    
-                
-            
-                
+        # fill lower band
+        mode_m,n_m=self.measure_single_mode_Born(legs_t,mode=[1,-1])
+        if n_m ==1:
+            # this is good
+            pass
+        elif n_m ==0:
+            _, n_bA = self.measure_single_mode_Born(legs_bA,mode=[1])
+            if n_bA == 1:
+                # A bottom occupied, fill to top layer
+                self.fSWAP(legs_t+legs_bA,state1 = [1,-1], state2=[1])
+            elif n_bA == 0:
+                # A bottom empty, measure B bottom
+                _, n_bB = self.measure_single_mode_Born(legs_bB,mode=[1])
+                if n_bB ==1:
+                    # B bottom occupied, fill to top layer
+                    self.fSWAP(legs_t+legs_bB,state1 = [1,-1], state2=[1])
+                elif n_bB ==0:
+                    # B bottom also empty
+                    pass 
+                else:
+                    raise ValueError('Protocol failed')
+        
+        # deplete upper band
+        mode_p,n_p=self.measure_single_mode_Born(legs_t,mode=[1,1])
+        if n_p ==0:
+            # this is good
+            pass
+        elif n_p == 1:
+            _, n_bA = self.measure_single_mode_Born(legs_bA,mode=[1])
+            if n_bA == 0:
+                # A bottom empty, deplete upper band
+                self.fSWAP(legs_t+legs_bA,state1 = [1,1], state2=[1])
+            elif n_bA == 1:
+                # A bottom occupied, measure B bottom
+                _, n_bB = self.measure_single_mode_Born(legs_bB,mode=[1])
+                if n_bB == 0:
+                    # B bottom empty
+                    self.fSWAP(legs_t+legs_bB,state1 = [1,1], state2=[1])
+                elif n_bB ==1:
+                    # B bottom also occupied
+                    pass
+                else:
+                    raise ValueError('Protocol failed')
 
 
 
@@ -743,6 +837,16 @@ def get_Born_class_AIII(A,Gamma,class_A=False,rng=None):
     theta=rng.uniform(-np.pi,np.pi,size=2)
     return tuple(kind), theta[0],theta[1]
 
+def get_Born_single_mode(Gamma,mode,rng=None):
+    """get the outcome of Born measurement for a single mode, 0 or 1, where mode is sum mode[i] c_i^dag"""
+    rng=np.random.default_rng(rng)
+    prob = get_Born(Gamma,mode)
+    if rng.random()< prob:
+        return 1
+    else:
+        return 0
+
+
 def get_Born_class_AIII_unitary(A,Gamma,class_A=False,rng=None):
     """here the only difference is the inclusion of extra basis, maybe a good idea is to rederived
     extend from iA, jB to iA, iB, jA, jB, 
@@ -1107,6 +1211,16 @@ def find_other_leg(parity_dict,ij):
         if i in x or j in x:
             other_leg_list.append(x)
     return other_leg_list
+    
+def op_single_mode(kind):
+    mode, n = kind
+    # if mode == '+':
+    #     u = [1,1]
+    # elif mode == '-':
+    #     u = [1,-1]
+    # else:
+    #     raise ValueError(f"mode with {mode} in class AIII single is not implemented")
+    return Gamma_othor(u=mode,epsilon11=np.array([[0,2*n-1],[1-2*n,0]]),epsilon12=np.zeros((2,2)))
 
 def op_class_AIII(A,theta1,theta2,kind):
     """in the onenote, A= tanh(alpha), 
@@ -1268,4 +1382,57 @@ def op_state_transfer(source,target):
             return Gamma-Gamma.T
         raise ValueError(f'source {source} and target {target} not defined')
 
+def op_fSWAP(state1,state2):
+    """state1 mode = \sum_i u_i c_i^dag, encoded in "u", same for the state2"""
+    state1=np.array(state1)/np.linalg.norm(state1)
+    state2=np.array(state2)/np.linalg.norm(state2)
+    u = np.hstack([state1,-state2])/np.sqrt(2)
+    epsilon11 = np.zeros((2,2))
+    epsilon12 = -np.eye(2)
+    return Gamma_othor(u,epsilon11,epsilon12)
+
+
+def Gamma_othor(u,epsilon11,epsilon12):
+    """start with a real cov matrix of [[epsilon11,epsilon12],[-epsilon12.T,-epsilon11]] of the shape (4,4) in the eigenbasis, find the new cov matrix with basis transformation, as c^dag = sum u_i c_i^dag
+    This can be extended in many scenarios, for example, 
+    1. fSWAP is with u = [1,-1], and epsilon11 = zeros(2,2), and epsilon12 = -eye(2)
+    2. fSWAP any two arbitary basis is with u =[u1,u2, .., -v1, -v2, ...], and epsilon11 = zeros(2,2), and epsilon12 = -eye(2)
+    3. real space mode, with u = [u1,u2,..], and construct a projector as u^dag u (u u^dag) , is with epsilon11 = [[0,1],[-1,0]] ([[0,-1],[1,0]]) and epsilon12 = zeros(2).
+     """
+    L= len(u)
+    u=np.array(u)/np.linalg.norm(u)
+    X = c2g(u)
+    Gamma11 = X.T@epsilon11@X
+    VdagV = np.eye(L) - np.outer(u.conj(),u)
+    Y = c2g(VdagV)
+    Gamma12 = X.T@epsilon12@X + Y
+    Gamma21 = -Gamma12.T
+    Gamma22 = -Gamma11
+    return np.block([[Gamma11,Gamma12],[Gamma21,Gamma22]])
+
+def c2g(u):
+    """ convert from BdG nambu spinor to Majorana operators: (I_L \otimes S^dag) (X \otimes [[1,0],[0,0]] + X.conj() \otimes [[0,0],[0,1]]) (I_L \otimes S)"""
+    if len(u.shape)==1:
+        u=u.reshape(1,-1)
+    X = np.zeros((2*u.shape[0],2*u.shape[1]),dtype=float)
+    X[::2,::2]=u.real
+    X[1::2,1::2]=u.real
+    X[::2,1::2]=-u.imag
+    X[1::2,::2]=u.imag
+    return X
+
+def get_C_f(Gamma):
+    """ get the correlation matrix defined as <c_i^dag c_j>"""
+    L=Gamma.shape[0]//2
+    S = np.kron(np.eye(L),np.array([[1,1j],[1,-1j]])/2)
+    C_f = S@ (np.eye(2*L)-1j * Gamma) @S.conj().T
+    return C_f[::2,::2]
+
+def get_Born(Gamma,u):
+    """ get the number density of <V^dag V> where V^dag = sum u_i c_i^dag, C_f is the correlation matrix defined as <c_i^dag c_j>"""
+    C_f = get_C_f(Gamma)
+    u = np.array(u)/np.linalg.norm(u)
+    n = u@C_f@u.conj()
+    assert np.abs(n.imag)<1e-10, f'number density is not real {n.imag.max()}'
+    return n
 

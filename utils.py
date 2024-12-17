@@ -157,7 +157,7 @@ def chern_number(Gamma,A_idx,B_idx,C_idx):
     h=12*np.pi*1j*(contract("jk,kl,lj->jkl",P,P,P)-contract("jl,lk,kj->jkl",P,P,P))
     return h[np.ix_(A_idx,B_idx,C_idx)].sum()
 
-def chern_number_quick(Gamma,A_idx,B_idx,C_idx,class_A=True):
+def chern_number_quick(Gamma,A_idx,B_idx,C_idx,U1=True):
     P=(np.eye(Gamma.shape[0])-1j*Gamma)/2
     P_AB=P[np.ix_(A_idx,B_idx)]
     P_BC=P[np.ix_(B_idx,C_idx)]
@@ -169,7 +169,7 @@ def chern_number_quick(Gamma,A_idx,B_idx,C_idx,class_A=True):
     assert np.abs(h.imag).max()<1e-10, "Imaginary part of h is too large"
     nu=h.real.sum()
     # return h
-    if class_A:
+    if U1:
         return nu/2
     else:
         return nu
@@ -281,3 +281,25 @@ def get_Born(Gamma,u):
     n = u@C_f@u.conj()
     assert np.abs(n.imag)<1e-10, f'number density is not real {n.imag.max()}'
     return n.real
+def get_P(Gamma):
+    return (np.eye(Gamma.shape[0])-1j*Gamma)/2
+def local_Chern_marker(Gamma,Lx,Ly,shift=[0,0],n_orbit=2,n_maj=2,op=False,U1=True):
+    C_f = get_C_f(Gamma,normal=False)
+    # C_f = get_P(Gamma)
+    if op:
+        l,x,y,orbit,maj = np.unravel_index(np.arange(C_f.shape[0]),(2,Lx,Ly,n_orbit,n_maj))
+    else:
+        x,y,orbit,maj = np.unravel_index(np.arange(C_f.shape[0]),(Lx,Ly,n_orbit,n_maj))
+    x = (x+shift[0])%Lx
+    y = (y+shift[1])%Ly
+    xy_comm = contract("ij,j,jk,k,ki->i",C_f,x,C_f,y,C_f) - contract("ij,j,jk,k,ki->i",C_f,y,C_f,x,C_f)
+    C_r = (xy_comm * 2 * np.pi* 1j)
+    if op:
+        C_r=C_r.reshape((2,Lx,Ly,n_orbit,n_maj))
+    else:
+        C_r=C_r.reshape((Lx,Ly,n_orbit,n_maj))
+    assert np.abs(C_r.imag).max()<1e-10, f'imaginary part is {C_r.imag.max()}'
+    if U1:
+        return C_r.sum(axis=(-1,-2)).real/2
+    else:
+        return C_r.sum(axis=(-1,-2)).real

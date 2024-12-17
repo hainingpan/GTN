@@ -408,3 +408,29 @@ def amplitude(nshell,nkx=500,nky=500,tau=[0,1],mu=1,geometry = 'square', lower=T
     a_i = {(i,j):a_nint(i,j) for i,j in ij_list}
     b_i = {(i,j):b_nint(i,j) for i,j in ij_list}
     return a_i,b_i
+
+
+def amplitude_fft(nkx=5000,nky=5000,tau=[0,1],mu=1, lower=True, C=1):
+    """if gemoetry is square, then the shape is [i-nshell,i+nshell]x[j-nshell,j+nshell]"""
+    
+    kx = np.linspace(-np.pi,np.pi,nkx)
+    ky = np.linspace(-np.pi,np.pi,nky)
+    KX,KY = np.meshgrid(kx,ky)
+    offdiag=(np.sin(KX)-1j*np.sin(KY))**C
+    dx = offdiag.real
+    dy = -offdiag.imag
+    dz = mu-np.cos(KX)-np.cos(KY)
+    E = np.sqrt(dx**2+dy**2+dz**2)
+    cos_theta = dz/E
+    sin_theta_exp_iphi = (dx+1j*dy)/E
+    tau = np.array(tau)/np.linalg.norm(tau)
+    if lower:
+        ak = (1-cos_theta)/2*tau[0] - 1/2*sin_theta_exp_iphi.conj()*tau[1]
+        bk = - 1/2*sin_theta_exp_iphi*tau[0] + (1+cos_theta)/2*tau[1]
+    else:
+        ak = (1+cos_theta)/2*tau[0] + 1/2*sin_theta_exp_iphi.conj()*tau[1]
+        bk = 1/2*sin_theta_exp_iphi*tau[0] + (1-cos_theta)/2*tau[1]
+
+    a_i = np.fft.fft2(ak)/(nkx*nky)
+    b_i = np.fft.fft2(bk)/(nkx*nky)
+    return a_i,b_i

@@ -264,12 +264,15 @@ def c2g(u):
     X[1::2,::2]=u.imag
     return X
 
-def get_C_f(Gamma):
+def get_C_f(Gamma,normal=True):
     """ get the correlation matrix defined as <c_i^dag c_j>"""
     L=Gamma.shape[0]//2
     S = np.kron(np.eye(L),np.array([[1,1j],[1,-1j]])/2)
     C_f = S@ (np.eye(2*L)-1j * Gamma) @S.conj().T
-    return C_f[::2,::2]
+    if normal:
+        return C_f[::2,::2]
+    else:
+        return C_f
 
 def get_Born(Gamma,u):
     """ get the number density of <V^dag V> where V^dag = sum u_i c_i^dag, C_f is the correlation matrix defined as <c_i^dag c_j>"""

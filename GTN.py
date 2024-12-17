@@ -117,12 +117,6 @@ class GTN:
         #                 [-n[1],n[2],0,-n[0]],
         #                 [-n[2],-n[1],n[0],0]])
     
-    
-    
-
-
-    
-
 
     def apply_charge_transfer(self,ix):
         """ Majorana site index for ix, transfer from ix[2:] to ix[:2] """

@@ -373,7 +373,7 @@ def amplitude(nshell,nkx=500,nky=500,tau=[0,1],mu=1,geometry = 'square', lower=T
     
     kx = np.linspace(-np.pi,np.pi,nkx)
     ky = np.linspace(-np.pi,np.pi,nky)
-    KX,KY = np.meshgrid(kx,ky)
+    KX,KY = np.meshgrid(kx,ky, indexing='ij')
     offdiag=(np.sin(KX)-1j*np.sin(KY))**C
     dx = offdiag.real
     dy = -offdiag.imag
@@ -415,7 +415,7 @@ def amplitude_fft(nkx=5000,nky=5000,tau=[0,1],mu=1, lower=True, C=1):
     
     kx = np.linspace(-np.pi,np.pi,nkx)
     ky = np.linspace(-np.pi,np.pi,nky)
-    KX,KY = np.meshgrid(kx,ky)
+    KX,KY = np.meshgrid(kx,ky, indexing='ij')
     offdiag=(np.sin(KX)-1j*np.sin(KY))**C
     dx = offdiag.real
     dy = -offdiag.imag

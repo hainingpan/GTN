@@ -6,13 +6,14 @@ from utils import get_O, circle, get_Born_single_mode, op_single_mode, P_contrac
 
 # Generate 2d lattice model
 class GTN2:
-    def __init__(self,Lx,Ly,history=True,seed=None,op=False,random_init=False,bcx=1,bcy=1,orbit=1,nshell=1):
+    def __init__(self,Lx,Ly,history=True,seed=None,op=False,random_init=False,bcx=1,bcy=1,orbit=1,layer=1,nshell=1):
         self.Lx= Lx # complex fermion sites
         self.Ly=Ly # complex fermion sites
         self.L = Lx* Ly*orbit # (Lx,Ly) in complex fermion sites
         self.orbit=orbit # number of orbitals
         self.history = history
         self.op = op
+        # self.layer=layer
         self.random_init = random_init
         self.rng=np.random.default_rng(seed)
         self.C_m=self.correlation_matrix()
@@ -321,18 +322,17 @@ class GTN2:
         self.measure_Wannier(ij,n,lower)
         return wf,n
 
-
-        
-
-
-
     def linearize_idx(self,i,j,majorana=0,orbit_idx=0):
         return np.ravel_multi_index((i,j,orbit_idx,majorana),(self.Lx,self.Ly,self.orbit,2))
-    def linearize_idx_span(self,ilist,jlist,n_orbits=2,shape_func=lambda i,j: True):
-            multi_index=np.array([(i%self.Lx,j%self.Ly,orbit,maj) for i in ilist for j in jlist for orbit in range(n_orbits) for maj in range(2) if shape_func(i%self.Lx,j%self.Ly)])
-            return np.ravel_multi_index(multi_index.T,(self.Lx,self.Ly,n_orbits,2))
+    def linearize_idx_span(self,ilist,jlist,n_orbits=2,shape_func=lambda i,j: True,l = 0 ):
+            if self.op:
+                multi_index=np.array([(l,i%self.Lx,j%self.Ly,orbit,maj) for i in ilist for j in jlist for orbit in range(n_orbits) for maj in range(2) if shape_func(i%self.Lx,j%self.Ly)])
+                return np.ravel_multi_index(multi_index.T,(2,self.Lx,self.Ly,n_orbits,2))
+            else:
+                multi_index=np.array([(i%self.Lx,j%self.Ly,orbit,maj) for i in ilist for j in jlist for orbit in range(n_orbits) for maj in range(2) if shape_func(i%self.Lx,j%self.Ly)])
+                return np.ravel_multi_index(multi_index.T,(self.Lx,self.Ly,n_orbits,2))
 
-    def delinearize_idx(self,idx,majorana=0):
+    def delinearize_idx(self,idx):
         # return np.unravel_index(idx//2,(self.Lx,self.Ly)), idx%2
         return np.unravel_index(idx,(self.Lx,self.Ly,self.orbit,2))
 

@@ -1,19 +1,21 @@
 import numpy as np
 import numpy.linalg as nla
 import scipy.linalg as la
+import scipy.sparse as sp
 from copy import copy
 from utils import get_O, circle, get_Born_single_mode, op_single_mode, P_contraction_2, op_fSWAP, get_Born_tri_op, kraus
 
 # Generate 2d lattice model
 class GTN2:
-    def __init__(self,Lx,Ly,history=True,seed=None,op=False,random_init=False,bcx=1,bcy=1,orbit=1,layer=1,nshell=1):
+    def __init__(self,Lx,Ly,history=True,seed=None,random_init=False,bcx=1,bcy=1,orbit=1,layer=1,replica=1,nshell=1,sparse=False):
         self.Lx= Lx # complex fermion sites
         self.Ly=Ly # complex fermion sites
         self.L = Lx* Ly*orbit # (Lx,Ly) in complex fermion sites
         self.orbit=orbit # number of orbitals
+        self.layer=layer # number of layers
+        self.replica=replica # number of replicas, for the reference sites
         self.history = history
-        self.op = op
-        # self.layer=layer
+        self.sparse= sparse
         self.random_init = random_init
         self.rng=np.random.default_rng(seed)
         self.C_m=self.correlation_matrix()
@@ -28,6 +30,12 @@ class GTN2:
         self.full_ix=set(range(self.C_m[-1].shape[0]))
         self.nshell = nshell
 
+    def kron(self,*args,**kwargs):
+        if self.sparse:
+            return sp.kron(*args,**kwargs)
+        else:
+            return np.kron(*args,**kwargs)
+
     def set(self,ij_list,n):
         """ij_list: [[i,j],...]
         n: [1,-1,...]
@@ -40,18 +48,19 @@ class GTN2:
             Gamma[j,i]=-n
 
     def correlation_matrix(self):
-        if self.op:
-            Omega=np.array([[0,1.],[-1.,0]])
-            Omega_diag=np.kron(np.eye(2*self.L),Omega)
-            self.A_D=Omega_diag
-            O=get_O(self.rng,4*self.L) if self.random_init else np.eye(4*self.L)
+        L_complex_f=self.replica*self.layer*self.orbit*self.L
+        Omega=np.array([[0,1.],[-1.,0]])
+        
+        if self.replica==2:
+            # the reference sites are entangled with their own site indices
+            Omega_diag=self.kron(Omega,np.eye(L_complex_f))
+        else:
+            Omega_diag=self.kron(np.eye(L_complex_f),Omega)
+        if self.random_init:
+            O=get_O(self.rng,2*L_complex_f)
             Gamma=O@Omega_diag@O.T
         else:
-            Omega=np.array([[0,1.],[-1.,0]])
-            Omega_diag=np.kron(np.eye(self.L),Omega)
-            self.A_D=Omega_diag
-            O=get_O(self.rng,2*self.L) if self.random_init else np.eye(2*self.L)
-            Gamma=O@Omega_diag@O.T
+            Gamma=Omega_diag
         return (Gamma-Gamma.T)/2
     
     def measure_tri_op(self,i,j,p,Born=True,):
@@ -75,7 +84,6 @@ class GTN2:
 
         Psi=self.C_m
         proj=kraus(n)
-        # ix_bar=np.array([i for i in np.arange(self.L*2) if i not in ix]) if not self.op else np.array([i for i in np.arange(self.L*4) if i not in ix])
         ix_bar=np.array([i for i in np.arange(self.C_m[-1].shape[0]) if i not in ix])
         # Psi=P_contraction(m,proj,ix,ix_bar)
         P_contraction_2(Psi,proj,ix,ix_bar,self.Gamma_like,reset_Gamma_like=False)
@@ -322,19 +330,15 @@ class GTN2:
         self.measure_Wannier(ij,n,lower)
         return wf,n
 
-    def linearize_idx(self,i,j,majorana=0,orbit_idx=0):
-        return np.ravel_multi_index((i,j,orbit_idx,majorana),(self.Lx,self.Ly,self.orbit,2))
-    def linearize_idx_span(self,ilist,jlist,n_orbits=2,shape_func=lambda i,j: True,l = 0 ):
-            if self.op:
-                multi_index=np.array([(l,i%self.Lx,j%self.Ly,orbit,maj) for i in ilist for j in jlist for orbit in range(n_orbits) for maj in range(2) if shape_func(i%self.Lx,j%self.Ly)])
-                return np.ravel_multi_index(multi_index.T,(2,self.Lx,self.Ly,n_orbits,2))
-            else:
-                multi_index=np.array([(i%self.Lx,j%self.Ly,orbit,maj) for i in ilist for j in jlist for orbit in range(n_orbits) for maj in range(2) if shape_func(i%self.Lx,j%self.Ly)])
-                return np.ravel_multi_index(multi_index.T,(self.Lx,self.Ly,n_orbits,2))
+    def linearize_idx(self,i,j,majorana=0,orbit_idx=0,layer=0,replica=0):
+        return np.ravel_multi_index((replica,layer,i,j,orbit_idx,majorana),(self.replica,self.layer,self.Lx,self.Ly,self.orbit,2))
+
+    def linearize_idx_span(self,ilist,jlist,layer = 0,replica=0,shape_func=lambda i,j: True, ):
+        multi_index=np.array([(replica,layer,i%self.Lx,j%self.Ly,orbit,maj) for i in ilist for j in jlist for orbit in range(self.orbit) for maj in range(2) if shape_func(i%self.Lx,j%self.Ly)])
+        return np.ravel_multi_index(multi_index.T,(self.replica,self.layer,self.Lx,self.Ly,self.orbit,2))
 
     def delinearize_idx(self,idx):
-        # return np.unravel_index(idx//2,(self.Lx,self.Ly)), idx%2
-        return np.unravel_index(idx,(self.Lx,self.Ly,self.orbit,2))
+        return np.unravel_index(idx,(self.replica,self.layer,self.Lx,self.Ly,self.orbit,2))
 
 
     def von_Neumann_entropy_m(self,subregion,Gamma=None,fermion_idx=True):

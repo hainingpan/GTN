@@ -281,23 +281,19 @@ def get_Born(Gamma,u):
     n = u@C_f@u.conj()
     assert np.abs(n.imag)<1e-10, f'number density is not real {n.imag.max()}'
     return n.real
+
 def get_P(Gamma):
     return (np.eye(Gamma.shape[0])-1j*Gamma)/2
-def local_Chern_marker(Gamma,Lx,Ly,shift=[0,0],n_orbit=2,n_maj=2,op=False,U1=True):
+
+def local_Chern_marker(Gamma,Lx,Ly,shift=[0,0],n_orbit=2,n_maj=2,n_replica=1,n_layer=2,U1=True):
     C_f = get_C_f(Gamma,normal=False)
-    # C_f = get_P(Gamma)
-    if op:
-        l,x,y,orbit,maj = np.unravel_index(np.arange(C_f.shape[0]),(2,Lx,Ly,n_orbit,n_maj))
-    else:
-        x,y,orbit,maj = np.unravel_index(np.arange(C_f.shape[0]),(Lx,Ly,n_orbit,n_maj))
+
+    replica,layer,x,y,orbit,maj = np.unravel_index(np.arange(C_f.shape[0]),(n_replica,n_layer,Lx,Ly,n_orbit,n_maj))
     x = (x+shift[0])%Lx
     y = (y+shift[1])%Ly
     xy_comm = contract("ij,j,jk,k,ki->i",C_f,x,C_f,y,C_f) - contract("ij,j,jk,k,ki->i",C_f,y,C_f,x,C_f)
     C_r = (xy_comm * 2 * np.pi* 1j)
-    if op:
-        C_r=C_r.reshape((2,Lx,Ly,n_orbit,n_maj))
-    else:
-        C_r=C_r.reshape((Lx,Ly,n_orbit,n_maj))
+    C_r=C_r.reshape((n_replica,n_layer,Lx,Ly,n_orbit,n_maj))
     assert np.abs(C_r.imag).max()<1e-10, f'imaginary part is {C_r.imag.max()}'
     if U1:
         return C_r.sum(axis=(-1,-2)).real/2

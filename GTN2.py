@@ -48,7 +48,7 @@ class GTN2:
             Gamma[j,i]=-n
 
     def correlation_matrix(self):
-        L_complex_f=self.replica*self.layer*self.orbit*self.L
+        L_complex_f=self.replica*self.layer*self.L
         Omega=np.array([[0,1.],[-1.,0]])
         
         if self.replica==2:
@@ -162,20 +162,24 @@ class GTN2:
             self.n_history=[state1,state2]
             self.i_history=[ix]
 
-    def measure_feedback(self,ij,feedback=True):
+    def measure_feedback(self,ij,mu=None,feedback=True,region=None):
         """ix is the 2 fermionic site index
         this can be used to incorporate feedback"""
         i,j=ij
-        ij_list = [((i+di)%self.Lx,(j+dj)%self.Ly) for di,dj in self.a_i.keys()]
-        legs_t_lower = [self.linearize_idx(*ij,orbit_idx=orbit_idx,majorana=idx) for ij in ij_list for orbit_idx in range(2) for idx in range(2)]
-        ij_list = [((i+di)%self.Lx,(j+dj)%self.Ly) for di,dj in self.A_i.keys()]
-        legs_t_upper = [self.linearize_idx(*ij,orbit_idx=orbit_idx,majorana=idx) for ij in ij_list for orbit_idx in range(2) for idx in range(2)]
+        if mu is None:
+            mu = list(self.a_i.keys())[0]
+        # ij_list = [((i+di)%self.Lx,(j+dj)%self.Ly) for di,dj in self.a_i[mu].keys()]
+        legs_t_lower,wf_lower=self.generate_ij_wf(i,j,self.a_i[mu],self.b_i[mu],self.bcx,self.bcy,region=region)
+        # legs_t_lower = [self.linearize_idx(*ij,orbit_idx=orbit_idx,majorana=idx) for ij in ij_list for orbit_idx in range(2) for idx in range(2)]
+        # ij_list = [((i+di)%self.Lx,(j+dj)%self.Ly) for di,dj in self.A_i[mu].keys()]
+        legs_t_upper,wf_upper=self.generate_ij_wf(i,j,self.A_i[mu],self.B_i[mu],self.bcx,self.bcy,region=region)
+        # legs_t_upper = [self.linearize_idx(*ij,orbit_idx=orbit_idx,majorana=idx) for ij in ij_list for orbit_idx in range(2) for idx in range(2)]
 
         legs_bA = [self.linearize_idx(i=i,j=j,orbit_idx=0,majorana=majorana)+2*self.L for majorana in range(2)]
         legs_bB = [self.linearize_idx(i=i,j=j,orbit_idx=1,majorana=majorana)+2*self.L for majorana in range(2)]
         # print(legs_bA,legs_bB)
-        wf_lower = np.stack([(a,b) for a,b in zip(self.a_i.values(),self.b_i.values())]).flatten()
-        wf_upper = np.stack([(a,b) for a,b in zip(self.A_i.values(),self.B_i.values())]).flatten()
+        # wf_lower = np.stack([(a,b) for a,b in zip(self.a_i[mu].values(),self.b_i[mu].values())]).flatten()
+        # wf_upper = np.stack([(a,b) for a,b in zip(self.A_i[mu].values(),self.B_i[mu].values())]).flatten()
         # print(legs_t_lower)
 
         # fill lower band
@@ -282,53 +286,53 @@ class GTN2:
             self.measure_weak(A,ix=[self.linearize_idx(*ij,orbit_idx=0,majorana=idx) for idx in range(2)]+[self.linearize_idx(*ij_y,orbit_idx=1,majorana=idx) for idx in range(2)],kind='nn_y')    # exp(beta * (-i*c_iL^dag c_i+y,L + h.c.)
             self.measure_weak(A,ix=[self.linearize_idx(*ij,orbit_idx=1,majorana=idx) for idx in range(2)]+[self.linearize_idx(*ij_y,orbit_idx=0,majorana=idx) for idx in range(2)],kind='nn_y')    # exp(beta * (-i*c_iL^dag c_i+y,L + h.c.)
 
-    def op_Wannier(self,n,lower):
-        """ project to "n" occupancy of "wf" mode"""
-        if lower:
-            wf = np.stack([(a,b) for a,b in zip(self.a_i.values(),self.b_i.values())]).flatten()
-        else:
-            wf = np.stack([(a,b) for a,b in zip(self.A_i.values(),self.B_i.values())]).flatten()
+    # def op_Wannier(self,n,lower):
+    #     """ project to "n" occupancy of "wf" mode"""
+    #     if lower:
+    #         wf = np.stack([(a,b) for a,b in zip(self.a_i.values(),self.b_i.values())]).flatten()
+    #     else:
+    #         wf = np.stack([(a,b) for a,b in zip(self.A_i.values(),self.B_i.values())]).flatten()
 
-        # u=form_basis(wf)
-        return Gamma_n1(tuple(wf),n)
+    #     # u=form_basis(wf)
+    #     return Gamma_n1(tuple(wf),n)
 
 
-    def measure_Wannier(self,ij,n,lower):
-        """measure the single mode centered at ij, project to the Wannier state"""
-        Psi=self.C_m
+    # def measure_Wannier(self,ij,n,lower):
+    #     """measure the single mode centered at ij, project to the Wannier state"""
+    #     Psi=self.C_m
 
-        i,j = ij
-        if lower:
-            ij_list = [((i+di)%self.Lx,(j+dj)%self.Ly) for di,dj in self.a_i.keys()]
-        else:
-            ij_list = [((i+di)%self.Lx,(j+dj)%self.Ly) for di,dj in self.A_i.keys()]
-        ix= [self.linearize_idx(*ij,orbit_idx=orbit_idx,majorana=idx) for ij in ij_list for orbit_idx in range(2) for idx in range(2)]
-        ix_bar=np.array(list(self.full_ix-set(ix)))
-        proj = self.op_Wannier(n=n,lower=lower)
-        P_contraction_2(Psi,proj,ix,ix_bar,self.Gamma_like,reset_Gamma_like=False)
-        if self.history:
-            self.C_m_history.append(Psi.copy())
-            # self.n_history.append([r])
-            self.i_history.append(ix)
-        else:
-            # self.n_history=[r]
-            self.i_history=[ix]
+    #     i,j = ij
+    #     if lower:
+    #         ij_list = [((i+di)%self.Lx,(j+dj)%self.Ly) for di,dj in self.a_i.keys()]
+    #     else:
+    #         ij_list = [((i+di)%self.Lx,(j+dj)%self.Ly) for di,dj in self.A_i.keys()]
+    #     ix= [self.linearize_idx(*ij,orbit_idx=orbit_idx,majorana=idx) for ij in ij_list for orbit_idx in range(2) for idx in range(2)]
+    #     ix_bar=np.array(list(self.full_ix-set(ix)))
+    #     proj = self.op_Wannier(n=n,lower=lower)
+    #     P_contraction_2(Psi,proj,ix,ix_bar,self.Gamma_like,reset_Gamma_like=False)
+    #     if self.history:
+    #         self.C_m_history.append(Psi.copy())
+    #         # self.n_history.append([r])
+    #         self.i_history.append(ix)
+    #     else:
+    #         # self.n_history=[r]
+    #         self.i_history=[ix]
 
-    def measure_Wannier_Born(self,ij,lower):
-        i,j = ij
-        if lower:
-            ij_list = [((i+di)%self.Lx,(j+dj)%self.Ly) for di,dj in self.a_i.keys()]
-            wf = np.stack([(a,b) for a,b in zip(self.a_i.values(),self.b_i.values())]).flatten()
-        else:
-            ij_list = [((i+di)%self.Lx,(j+dj)%self.Ly) for di,dj in self.A_i.keys()]
-            wf = np.stack([(a,b) for a,b in zip(self.A_i.values(),self.B_i.values())]).flatten()
-        ix= [self.linearize_idx(*ij,orbit_idx=orbit_idx,majorana=idx) for ij in ij_list for orbit_idx in range(2) for idx in range(2)]
-        ix_bar=np.array(list(self.full_ix-set(ix)))
-        Gamma = self.C_m[np.ix_(ix,ix)]
+    # def measure_Wannier_Born(self,ij,lower):
+    #     i,j = ij
+    #     if lower:
+    #         ij_list = [((i+di)%self.Lx,(j+dj)%self.Ly) for di,dj in self.a_i.keys()]
+    #         wf = np.stack([(a,b) for a,b in zip(self.a_i.values(),self.b_i.values())]).flatten()
+    #     else:
+    #         ij_list = [((i+di)%self.Lx,(j+dj)%self.Ly) for di,dj in self.A_i.keys()]
+    #         wf = np.stack([(a,b) for a,b in zip(self.A_i.values(),self.B_i.values())]).flatten()
+    #     ix= [self.linearize_idx(*ij,orbit_idx=orbit_idx,majorana=idx) for ij in ij_list for orbit_idx in range(2) for idx in range(2)]
+    #     ix_bar=np.array(list(self.full_ix-set(ix)))
+    #     Gamma = self.C_m[np.ix_(ix,ix)]
             
-        n = get_Born_single_mode(Gamma=Gamma,mode=wf,rng=self.rng)
-        self.measure_Wannier(ij,n,lower)
-        return wf,n
+    #     n = get_Born_single_mode(Gamma=Gamma,mode=wf,rng=self.rng)
+    #     self.measure_Wannier(ij,n,lower)
+    #     return wf,n
 
     def linearize_idx(self,i,j,majorana=0,orbit_idx=0,layer=0,replica=0):
         return np.ravel_multi_index((replica,layer,i,j,orbit_idx,majorana),(self.replica,self.layer,self.Lx,self.Ly,self.orbit,2))
@@ -351,7 +355,7 @@ class GTN2:
 
     def entanglement_contour(self,subregion,fermion=False, Gamma=None, fermion_idx=True):
         # c_A=self.c_subregion_m(subregion)
-        c_A=self.c_subregion_m(subregion,Gamma,fermion_idx=fermion_idx)+1e-18j
+        c_A=self.c_subregion_m(subregion,Gamma,fermion_idx=fermion_idx)
         C_f=(np.eye(c_A.shape[0])+1j*c_A)/2
         f,_=la.funm(C_f,lambda x: -x*np.log(x),disp=False)
         if fermion:
@@ -370,6 +374,32 @@ class GTN2:
         B_idx_0=self.linearize_idx_span(np.arange(self.Lx),np.arange(self.Ly),shape_func=lambda i,j: circle(i,j,center=[self.Lx/2,self.Ly/2],radius=[self.Lx/radius_factor[0],self.Ly/radius_factor[1]],angle=[np.pi/3*2,np.pi/3*4]))
         C_idx_0=self.linearize_idx_span(np.arange(self.Lx),np.arange(self.Ly),shape_func=lambda i,j: circle(i,j,center=[self.Lx/2,self.Ly/2],radius=[self.Lx/radius_factor[0],self.Ly/radius_factor[1]],angle=[np.pi/3*4,np.pi/3*6]))
         return A_idx_0,B_idx_0,C_idx_0
+    
+    def generate_ij_wf(self,i,j,a_i,b_i,bcx,bcy,region=None):
+        """generate ij_list from a local mode a_i;
+        assume a_i, and b_i have the same keys"""
+        ij_list = []
+        wf = []
+        for di,dj in a_i.keys():
+            i1,j1=(i+di),(j+dj)
+            if bcx==1:
+                i1=i1%self.Lx
+            elif bcx==0:
+                if i1<0 or i1>=self.Lx:
+                    continue
+            if bcy==1:
+                j1=j1%self.Ly
+            elif bcy==0:
+                if j1<0 or j1>=self.Ly:
+                    continue
+            if region is not None:
+                if (i1,j1) not in region:
+                    continue
+            ij_list.append((i1,j1))
+            wf.append(a_i[di,dj])
+            wf.append(b_i[di,dj])
+        legs=[self.linearize_idx(*ij,orbit_idx=orbit_idx,majorana=idx) for ij in ij_list for orbit_idx in range(2) for idx in range(2)]
+        return legs, wf
 
 
 def amplitude(nshell,nkx=500,nky=500,tau=[0,1],mu=1,geometry = 'square', lower=True, C=1):
@@ -438,3 +468,5 @@ def amplitude_fft(nkx=5000,nky=5000,tau=[0,1],mu=1, lower=True, C=1):
     a_i = np.fft.fft2(ak)/(nkx*nky)
     b_i = np.fft.fft2(bk)/(nkx*nky)
     return a_i,b_i
+
+

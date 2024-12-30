@@ -1,10 +1,9 @@
 from functools import lru_cache
 from itertools import permutations
 import scipy.linalg as la
-import scipy.sparse as sp
 import numpy.linalg as nla
 import numpy as np
-
+from scipy.stats import special_ortho_group
 
 def kraus(n):
     return np.array([[0,n[0],n[1],n[2]],
@@ -28,11 +27,13 @@ def get_inplane(n1,num,rng=None,sigma=1):
     phi=rng.random(num)*2*np.pi*sigma
     n2,n3=r*np.cos(phi),r*np.sin(phi)
     return n2,n3
+# def get_O(rng,n):
+#     rng=np.random.default_rng(rng)
+#     A=rng.normal(size=(n,n))
+#     AA=(A-A.T)/2
+#     return la.expm(AA)
 def get_O(rng,n):
-    rng=np.random.default_rng(rng)
-    A=rng.normal(size=(n,n))
-    AA=(A-A.T)/2
-    return la.expm(AA)
+    return special_ortho_group.rvs(dim=n,random_state=rng)
     
 def P_contraction_2(Gamma,Upsilon,ix,ix_bar,Gamma_like=None,reset_Gamma_like=True):
     """ same analytical expression for contraction as _contraction(), differences:
@@ -58,15 +59,9 @@ def P_contraction_2(Gamma,Upsilon,ix,ix_bar,Gamma_like=None,reset_Gamma_like=Tru
     D=Gamma_RR@C.T
     tmp=Gamma_LR@A@Gamma_LR.T
     if Gamma_like is None:
-        if sp.issparse(Gamma):
-            Gamma_like = sp.csr_matrix(Gamma.shape)
-        else:
-            Gamma_like=np.zeros_like(Gamma)
+        Gamma_like=np.zeros_like(Gamma)
     if reset_Gamma_like:
-        if sp.issparse(Gamma):
-            Gamma_like = sp.csr_matrix(Gamma.shape)
-        else:
-            Gamma_like.fill(0)
+        Gamma_like.fill(0)
     Gamma_like[np.ix_(ix_bar,ix_bar)]=tmp
     Gamma+=Gamma_like
     Gamma[np.ix_(ix,ix_bar)]=Upsilon_RL@C@Gamma_LR.T
@@ -76,11 +71,7 @@ def P_contraction_2(Gamma,Upsilon,ix,ix_bar,Gamma_like=None,reset_Gamma_like=Tru
     # Gamma-=Gamma.T
     # Gamma/=2
 
-    if sp.issparse(Gamma):
-        purify_flag=np.abs((Gamma@Gamma).diagonal()+1).max()>1e-10
-    else:
-        purify_flag=np.abs(contract(Gamma,[0,1],Gamma,[1,0],[0])+1).max()>1e-10
-    if purify_flag:
+    if np.abs(contract(Gamma,[0,1],Gamma,[1,0],[0])+1).max()>1e-10:
         Gamma[:,:]=purify(Gamma)
         Gamma-=Gamma.T
         Gamma/=2

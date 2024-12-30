@@ -1,6 +1,7 @@
 from functools import lru_cache
 from itertools import permutations
 import scipy.linalg as la
+import scipy.sparse as sp
 import numpy.linalg as nla
 import numpy as np
 
@@ -57,10 +58,15 @@ def P_contraction_2(Gamma,Upsilon,ix,ix_bar,Gamma_like=None,reset_Gamma_like=Tru
     D=Gamma_RR@C.T
     tmp=Gamma_LR@A@Gamma_LR.T
     if Gamma_like is None:
-        Gamma_like=np.zeros_like(Gamma)
+        if sp.issparse(Gamma):
+            Gamma_like = sp.csr_matrix(Gamma.shape)
+        else:
+            Gamma_like=np.zeros_like(Gamma)
     if reset_Gamma_like:
-        # Gamma_like[:,:]=0
-        Gamma_like.fill(0)
+        if sp.issparse(Gamma):
+            Gamma_like = sp.csr_matrix(Gamma.shape)
+        else:
+            Gamma_like.fill(0)
     Gamma_like[np.ix_(ix_bar,ix_bar)]=tmp
     Gamma+=Gamma_like
     Gamma[np.ix_(ix,ix_bar)]=Upsilon_RL@C@Gamma_LR.T
@@ -70,7 +76,11 @@ def P_contraction_2(Gamma,Upsilon,ix,ix_bar,Gamma_like=None,reset_Gamma_like=Tru
     # Gamma-=Gamma.T
     # Gamma/=2
 
-    if np.abs(contract(Gamma,[0,1],Gamma,[1,0],[0])+1).max()>1e-10:
+    if sp.issparse(Gamma):
+        purify_flag=np.abs((Gamma@Gamma).diagonal()+1).max()>1e-10
+    else:
+        purify_flag=np.abs(contract(Gamma,[0,1],Gamma,[1,0],[0])+1).max()>1e-10
+    if purify_flag:
         Gamma[:,:]=purify(Gamma)
         Gamma-=Gamma.T
         Gamma/=2

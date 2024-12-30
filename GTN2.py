@@ -7,7 +7,7 @@ from utils import get_O, circle, get_Born_single_mode, op_single_mode, P_contrac
 
 # Generate 2d lattice model
 class GTN2:
-    def __init__(self,Lx,Ly,history=True,seed=None,random_init=False,bcx=1,bcy=1,orbit=1,layer=1,replica=1,nshell=1,sparse=False):
+    def __init__(self,Lx,Ly,history=True,seed=None,random_init=False,random_U1=False,bcx=1,bcy=1,orbit=1,layer=1,replica=1,nshell=1,sparse=False):
         self.Lx= Lx # complex fermion sites
         self.Ly=Ly # complex fermion sites
         self.L = Lx* Ly*orbit # (Lx,Ly) in complex fermion sites
@@ -17,9 +17,10 @@ class GTN2:
         self.history = history
         self.sparse= sparse
         self.random_init = random_init
+        self.random_U1 = random_U1
         self.rng=np.random.default_rng(seed)
         self.C_m=self.correlation_matrix()
-        self.Gamma_like=np.zeros_like(self.C_m)
+        self.Gamma_like=self.zeros_like(self.C_m)
         self.C_m_history=[self.C_m.copy()]
         self.n_history=[]
         self.i_history=[]
@@ -32,16 +33,22 @@ class GTN2:
 
     def kron(self,*args,**kwargs):
         if self.sparse:
-            return sp.kron(*args,**kwargs)
+            return sp.kron(*args,**kwargs).tocsr()
         else:
             return np.kron(*args,**kwargs)
+    def zeros_like(self,A):
+        if self.sparse:
+            return sp.csr_matrix(A.shape)
+        else:
+            return np.zeros_like(A)
 
-    def set(self,ij_list,n):
+    def set(self,ij_list,n,Gamma=None):
         """ij_list: [[i,j],...]
         n: [1,-1,...]
         simply set all Gamma[i,j]=n, Gamma[j,i]=-n
         """
-        Gamma=self.C_m
+        if Gamma is None:
+            Gamma=self.C_m
         for ij,n in zip(ij_list,n):
             i,j=ij
             Gamma[i,j]=n
@@ -57,8 +64,18 @@ class GTN2:
         else:
             Omega_diag=self.kron(np.eye(L_complex_f),Omega)
         if self.random_init:
-            O=get_O(self.rng,2*L_complex_f)
-            Gamma=O@Omega_diag@O.T
+            if self.random_U1:
+                # random with U1
+                i_list = self.rng.random(L_complex_f)
+                i_list = 2*np.arange(L_complex_f)[i_list<0.5]
+                j_list = i_list+1
+                ij_list=np.array([i_list,j_list]).T
+                self.set(ij_list=ij_list,n=[-1]*i_list.shape[0],Gamma=Omega_diag)
+                Gamma=Omega_diag
+            else:
+                # random without U1, in this scenario, the sparse matrix is not optimal
+                O=get_O(self.rng,2*L_complex_f)
+                Gamma=O@Omega_diag@O.T
         else:
             Gamma=Omega_diag
         return (Gamma-Gamma.T)/2
@@ -78,6 +95,7 @@ class GTN2:
         n_list=get_Born_tri_op(p=0,Gamma=np.array([0]),rng=self.rng,alpha=1)
         self.measure(n_list[0],ix=legs)
         return n_list[0][0]
+        
     def measure(self,n,ix):
         ''' Majorana site index for ix, 
         n should be a scalar'''

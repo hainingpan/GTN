@@ -168,64 +168,61 @@ class GTN2:
         i,j=ij
         if mu is None:
             mu = list(self.a_i.keys())[0]
-        # ij_list = [((i+di)%self.Lx,(j+dj)%self.Ly) for di,dj in self.a_i[mu].keys()]
         legs_t_lower,wf_lower=self.generate_ij_wf(i,j,self.a_i[mu],self.b_i[mu],self.bcx,self.bcy,region=region)
-        # legs_t_lower = [self.linearize_idx(*ij,orbit_idx=orbit_idx,majorana=idx) for ij in ij_list for orbit_idx in range(2) for idx in range(2)]
-        # ij_list = [((i+di)%self.Lx,(j+dj)%self.Ly) for di,dj in self.A_i[mu].keys()]
         legs_t_upper,wf_upper=self.generate_ij_wf(i,j,self.A_i[mu],self.B_i[mu],self.bcx,self.bcy,region=region)
-        # legs_t_upper = [self.linearize_idx(*ij,orbit_idx=orbit_idx,majorana=idx) for ij in ij_list for orbit_idx in range(2) for idx in range(2)]
 
         legs_bA = [self.linearize_idx(i=i,j=j,orbit_idx=0,majorana=majorana)+2*self.L for majorana in range(2)]
         legs_bB = [self.linearize_idx(i=i,j=j,orbit_idx=1,majorana=majorana)+2*self.L for majorana in range(2)]
         # print(legs_bA,legs_bB)
-        # wf_lower = np.stack([(a,b) for a,b in zip(self.a_i[mu].values(),self.b_i[mu].values())]).flatten()
-        # wf_upper = np.stack([(a,b) for a,b in zip(self.A_i[mu].values(),self.B_i[mu].values())]).flatten()
         # print(legs_t_lower)
 
         # fill lower band
-        # mode_m,n_m=self.measure_Wannier_Born(ij,lower=True)
         mode_m,n_m=self.measure_single_mode_Born(legs_t_lower,mode=wf_lower)
         if n_m ==1:
             # this is good
             pass
         elif n_m ==0:
-            _, n_bA = self.measure_single_mode_Born(legs_bA,mode=[1])
-            if n_bA == 1:
-                # A bottom occupied, fill to top layer
-                self.fSWAP(legs_t_lower+legs_bA,state1 = wf_lower, state2=[1])
-            elif n_bA == 0:
-                # A bottom empty, measure B bottom
-                _, n_bB = self.measure_single_mode_Born(legs_bB,mode=[1])
-                if n_bB ==1:
-                    # B bottom occupied, fill to top layer
-                    self.fSWAP(legs_t_lower+legs_bB,state1 = wf_lower, state2=[1])
-                elif n_bB ==0:
-                    # B bottom also empty
-                    pass 
-                else:
-                    raise ValueError('Protocol failed')
+            self.fSWAP(legs_t_lower+legs_bA,state1 = wf_lower, state2=[1])
+            self.fSWAP(legs_t_lower+legs_bB,state1 = wf_lower, state2=[1])
+            # _, n_bA = self.measure_single_mode_Born(legs_bA,mode=[1])
+            # if n_bA == 1:
+            #     # A bottom occupied, fill to top layer
+            #     self.fSWAP(legs_t_lower+legs_bA,state1 = wf_lower, state2=[1])
+            # elif n_bA == 0:
+            #     # A bottom empty, measure B bottom
+            #     _, n_bB = self.measure_single_mode_Born(legs_bB,mode=[1])
+            #     if n_bB ==1:
+            #         # B bottom occupied, fill to top layer
+            #         self.fSWAP(legs_t_lower+legs_bB,state1 = wf_lower, state2=[1])
+            #     elif n_bB ==0:
+            #         # B bottom also empty
+            #         pass 
+            #     else:
+            #         raise ValueError('Protocol failed')
+
         # deplete upper band
-        # mode_p,n_p=self.measure_Wannier_Born(ij,lower=False)
         mode_p,n_p=self.measure_single_mode_Born(legs_t_upper,mode=wf_upper)
         if n_p ==0:
             # this is good
             pass
         elif n_p == 1:
-            _, n_bA = self.measure_single_mode_Born(legs_bA,mode=[1])
-            if n_bA == 0:
-                # A bottom empty, deplete upper band
-                self.fSWAP(legs_t_upper+legs_bA,state1 = wf_upper, state2=[1])
-            elif n_bA == 1:
-                # A bottom occupied, measure B bottom
-                _, n_bB = self.measure_single_mode_Born(legs_bB,mode=[1])
-                if n_bB == 0:
-                    # B bottom empty
-                    self.fSWAP(legs_t_upper+legs_bB,state1 = wf_upper, state2=[1])
-                elif n_bB ==1:
-                    # B bottom also occupied
-                    pass
-                else:
-                    raise ValueError('Protocol failed')
+            self.fSWAP(legs_t_upper+legs_bA,state1 = wf_upper, state2=[1])
+            self.fSWAP(legs_t_upper+legs_bB,state1 = wf_upper, state2=[1])
+            # _, n_bA = self.measure_single_mode_Born(legs_bA,mode=[1])
+            # if n_bA == 0:
+            #     # A bottom empty, deplete upper band
+            #     self.fSWAP(legs_t_upper+legs_bA,state1 = wf_upper, state2=[1])
+            # elif n_bA == 1:
+            #     # A bottom occupied, measure B bottom
+            #     _, n_bB = self.measure_single_mode_Born(legs_bB,mode=[1])
+            #     if n_bB == 0:
+            #         # B bottom empty
+            #         self.fSWAP(legs_t_upper+legs_bB,state1 = wf_upper, state2=[1])
+            #     elif n_bB ==1:
+            #         # B bottom also occupied
+            #         pass
+            #     else:
+            #         raise ValueError('Protocol failed')
 
 
     

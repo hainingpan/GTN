@@ -3,6 +3,7 @@ from itertools import permutations
 import scipy.linalg as la
 import numpy.linalg as nla
 import numpy as np
+import scipy.sparse as sp
 from scipy.stats import special_ortho_group
 
 def kraus(n):
@@ -27,13 +28,13 @@ def get_inplane(n1,num,rng=None,sigma=1):
     phi=rng.random(num)*2*np.pi*sigma
     n2,n3=r*np.cos(phi),r*np.sin(phi)
     return n2,n3
-# def get_O(rng,n):
-#     rng=np.random.default_rng(rng)
-#     A=rng.normal(size=(n,n))
-#     AA=(A-A.T)/2
-#     return la.expm(AA)
 def get_O(rng,n):
-    return special_ortho_group.rvs(dim=n,random_state=rng)
+    rng=np.random.default_rng(rng)
+    A=rng.normal(size=(n,n))
+    AA=(A-A.T)/2
+    return la.expm(AA)
+# def get_O(rng,n):
+#     return special_ortho_group.rvs(dim=n,random_state=rng)
     
 def P_contraction_2(Gamma,Upsilon,ix,ix_bar,Gamma_like=None,reset_Gamma_like=True):
     """ same analytical expression for contraction as _contraction(), differences:
@@ -148,9 +149,13 @@ def op_weak_nn_y(A):
     Gamma[0,4]=Gamma[1,5]=Gamma[2,6]=Gamma[3,7]=np.sqrt(1-A**2)
     return (Gamma-Gamma.T)
 @lru_cache(maxsize=None)
-def op_single_mode(kind):
+def op_single_mode(kind,sparse=False):
     mode, n = kind
-    return Gamma_othor(u=mode,epsilon11=np.array([[0,2*n-1],[1-2*n,0]]),epsilon12=np.zeros((2,2)))
+    op= Gamma_othor(u=mode,epsilon11=np.array([[0,2*n-1],[1-2*n,0]]),epsilon12=np.zeros((2,2)))
+    if sparse:
+        return sp.csr_matrix(op)
+    else:
+        return op
 
 from opt_einsum import contract
 def chern_number(Gamma,A_idx,B_idx,C_idx):
@@ -225,7 +230,7 @@ def get_Born_single_mode(Gamma,mode,rng=None):
         return 1
     else:
         return 0
-
+@lru_cache(maxsize=None)
 def op_fSWAP(state1,state2):
     """state1 mode = \sum_i u_i c_i^dag, encoded in "u", same for the state2"""
     state1=np.array(state1)/np.linalg.norm(state1)

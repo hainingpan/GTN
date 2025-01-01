@@ -28,7 +28,7 @@ class GTN2:
         self.seed = seed
         self.bcx = bcx # boundary condition in x direction, 0 for open, 1 for periodic, -1 for antiperiodic
         self.bcy = bcy # boundary condition in y direction, 0 for open, 1 for periodic, -1 for antiperiodic
-        self.full_ix=set(range(self.C_m[-1].shape[0]))
+        self.full_ix=set(range(self.C_m.shape[0]))
         self.nshell = nshell
 
     def kron(self,*args,**kwargs):
@@ -102,7 +102,8 @@ class GTN2:
 
         Psi=self.C_m
         proj=kraus(n)
-        ix_bar=np.array([i for i in np.arange(self.C_m[-1].shape[0]) if i not in ix])
+        ix_bar=np.array(list(self.full_ix-set(ix)))
+
         # Psi=P_contraction(m,proj,ix,ix_bar)
         P_contraction_2(Psi,proj,ix,ix_bar,self.Gamma_like,reset_Gamma_like=False)
 
@@ -200,8 +201,8 @@ class GTN2:
             # this is good
             pass
         elif n_m ==0:
-            self.fSWAP(legs_t_lower+legs_bA,state1 = wf_lower, state2=[1])
-            self.fSWAP(legs_t_lower+legs_bB,state1 = wf_lower, state2=[1])
+            self.fSWAP(legs_t_lower+legs_bA,state1 = wf_lower, state2=(1,))
+            self.fSWAP(legs_t_lower+legs_bB,state1 = wf_lower, state2=(1,))
             # _, n_bA = self.measure_single_mode_Born(legs_bA,mode=[1])
             # if n_bA == 1:
             #     # A bottom occupied, fill to top layer
@@ -224,8 +225,8 @@ class GTN2:
             # this is good
             pass
         elif n_p == 1:
-            self.fSWAP(legs_t_upper+legs_bA,state1 = wf_upper, state2=[1])
-            self.fSWAP(legs_t_upper+legs_bB,state1 = wf_upper, state2=[1])
+            self.fSWAP(legs_t_upper+legs_bA,state1 = wf_upper, state2=(1,))
+            self.fSWAP(legs_t_upper+legs_bB,state1 = wf_upper, state2=(1,))
             # _, n_bA = self.measure_single_mode_Born(legs_bA,mode=[1])
             # if n_bA == 0:
             #     # A bottom empty, deplete upper band
@@ -382,7 +383,6 @@ class GTN2:
             Gamma=self.C_m
         if fermion_idx:
             subregion=self.linearize_index(subregion,2)
-        
         return Gamma[np.ix_(subregion,subregion)]
     def generate_tripartite_circle(self,radius_factor=(2.6,2.6)):
         A_idx_0=self.linearize_idx_span(np.arange(self.Lx),np.arange(self.Ly),shape_func=lambda i,j: circle(i,j,center=[self.Lx/2,self.Ly/2],radius=[self.Lx/radius_factor[0],self.Ly/radius_factor[1]],angle=[0,np.pi/3*2]))
@@ -414,7 +414,7 @@ class GTN2:
             wf.append(a_i[di,dj])
             wf.append(b_i[di,dj])
         legs=[self.linearize_idx(*ij,orbit_idx=orbit_idx,majorana=idx) for ij in ij_list for orbit_idx in range(2) for idx in range(2)]
-        return legs, wf
+        return legs, tuple(wf)
 
 
 def amplitude(nshell,nkx=500,nky=500,tau=[0,1],mu=1,geometry = 'square', lower=True, C=1):

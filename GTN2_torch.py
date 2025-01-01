@@ -274,7 +274,6 @@ class GTN2_torch:
     def get_C_f(self,Gamma,normal=True):
         """ get the correlation matrix defined as <c_i^dag c_j>"""
         L=Gamma.shape[0]//2
-        # S0=
         S = torch.kron(torch.eye(L,device=self.device),self.S0)
         C_f = S@ (torch.eye(2*L,device=self.device)-1j * Gamma) @S.conj().T
         if normal:
@@ -302,12 +301,12 @@ class GTN2_torch:
         return torch.tensor(A_idx_0,device=self.device),torch.tensor(B_idx_0,device=self.device),torch.tensor(C_idx_0,device=self.device)
 
     def local_Chern_marker(self,Gamma,shift=[0,0],n_maj=2,U1=True):
-        C_f = self.get_C_f(Gamma,normal=False)
-        replica,layer,x,y,orbit,maj = np.unravel_index(np.arange(C_f.shape[0]),(self.replica,self.layer,self.Lx,self.Ly,self.orbit,n_maj))
+        replica,layer,x,y,orbit,maj = np.unravel_index(np.arange(Gamma.shape[0]),(self.replica,self.layer,self.Lx,self.Ly,self.orbit,n_maj))
         x = torch.tensor((x+shift[0])%self.Lx,device=self.device)
         y = torch.tensor((y+shift[1])%self.Ly,device=self.device)
+        C_f = self.get_C_f(Gamma,normal=False)
         xy_comm = torch.einsum("ij,j,jk,k,ki->i",C_f,x,C_f,y,C_f) - torch.einsum("ij,j,jk,k,ki->i",C_f,y,C_f,x,C_f)
-        C_r = (xy_comm * 2 * np.pi* 1j)
+        C_r = (xy_comm * 2 * torch.pi* 1j)
         C_r=C_r.reshape((self.replica,self.layer,self.Lx,self.Ly,self.orbit,n_maj))
         # assert np.abs(C_r.imag).max()<1e-10, f'imaginary part is {C_r.imag.max()}'
         if U1:

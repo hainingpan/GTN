@@ -2,7 +2,6 @@ from GTN2 import *
 from utils import *
 import time
 import argparse
-import matplotlib.pyplot as plt
 import pickle
 from tqdm import tqdm
 from mpi4py.futures import MPIPoolExecutor
@@ -52,7 +51,7 @@ def run(inputs):
     nu_list.append( chern_number_quick(gtn2.C_m,A_idx_0,B_idx_0,C_idx_0))
     EE_list.append( gtn2.von_Neumann_entropy_m(subregion_m,fermion_idx=False))
 
-    for i in range(tf):
+    for i in tqdm(range(tf)):
         randomize_monitor(gtn2)
         measure_feedback_layer_monitor(gtn2)
         nu_list.append( chern_number_quick(gtn2.C_m,A_idx_0,B_idx_0,C_idx_0))

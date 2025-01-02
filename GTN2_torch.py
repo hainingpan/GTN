@@ -1,6 +1,5 @@
 import numpy as np
 import numpy.linalg as nla
-import scipy.linalg as la
 import torch
 from utils_torch import P_contraction_torch, get_O
 from utils import op_single_mode, op_fSWAP, get_Born_tri_op, circle
@@ -52,7 +51,9 @@ class GTN2_torch:
         if self.gpu:
             if torch.cuda.is_available():
                 device = torch.device("cuda")
+                gpu_name = torch.cuda.get_device_name(0)
                 print('Using',device)
+                print(f"GPU Model: {gpu_name}")
                 return device
             else:
                 raise ValueError('CUDA is not available')

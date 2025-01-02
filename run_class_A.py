@@ -31,8 +31,8 @@ def run_single_class_AIII_unitary(inputs):
     for i in range(t):
         # gtn.measure_all_class_AIII_r_unified(A_list=A,Born=Born,r_list=r,even=True,class_A=True)
         # gtn.measure_all_class_AIII_r_unified(A_list=np.sqrt(1-A**2),Born=Born,r_list=r,even=False,class_A=True)
-        gtn.measure_all_class_AIII_r_unitary(A_list=A,Born=Born,r_list=r,even=True,class_A=True,break_symm=True,factor=16)
-        gtn.measure_all_class_AIII_r_unitary(A_list=np.sqrt(1-A**2),r_list=r,Born=Born,even=False,class_A=True,break_symm=True,factor=16)
+        gtn.measure_all_class_AIII_r_unitary(A_list=A,Born=Born,r_list=r,even=True,class_A=True,break_symm=False,factor=4)
+        gtn.measure_all_class_AIII_r_unitary(A_list=np.sqrt(1-A**2),r_list=r,Born=Born,even=False,class_A=True,break_symm=False,factor=4)
     MI=gtn.mutual_information_cross_ratio(unitcell=2,ratio=[1,4])
     # EE=gtn.von_Neumann_entropy_m_self_average(unitcell=2)
     EE=gtn.tripartite_mutual_information_cross_ratio(unitcell=2,ratio=[1,4])
@@ -64,7 +64,7 @@ if __name__=="__main__":
     st=time.time()
     # inputs=[(args.L,seed,vartheta,t,args.Born,args.class_A) for vartheta in vartheta_list for seed in range(args.es)]
     inputs=[(args.L,seed,vartheta,t,args.r,args.Born,args.class_A) for vartheta in vartheta_list for seed in range(args.es)]
-    with MPIPoolExecutor() as executor:
+    with MPIPoolExecutor(max_workers=40) as executor:
         rs=list(tqdm(executor.map(wrapper,inputs),total=len(inputs)))
     # rs=list(tqdm(map(wrapper,inputs),total=len(inputs)))
     rs=np.array(rs).reshape((int(args.vartheta[2]),args.es,2))

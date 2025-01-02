@@ -33,4 +33,5 @@
 # mpirun -np 11 python -m mpi4py.futures run_classA_2D.py --L 20 --nshell 2 --mu 1 --es 10
 
 
-python run_classA_2D_DW.py --L 10 --nshell 2 --tf 10  --truncate
+python run_classA_2D_DW.py --L 25 --nshell 2 --tf 30  --truncate
+python run_classA_2D_DW.py --L 25 --nshell 2 --tf 30  

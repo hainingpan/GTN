@@ -3,6 +3,7 @@ import time
 import argparse
 import pickle
 import numpy as np
+from tqdm import tqdm
 from mpi4py.futures import MPIPoolExecutor
 
 def measure(inputs):
@@ -16,10 +17,26 @@ def measure(inputs):
             MI.append(gtn.mutual_information_cross_ratio())
     return np.array(MI)
 
+def measure_final(inputs):
+    p,es,L,t,Born=inputs
+    gtn=GTN(L=L,seed=es,history=False,random_init=True)
+    for i in range(t):
+        gtn.measure_all_tri_op(p_list=p,Born=Born,even=True)
+        gtn.measure_all_tri_op(p_list=1-p,Born=Born,even=False)
+    MI=gtn.mutual_information_cross_ratio()
+    EE=gtn.von_Neumann_entropy_m_self_average()
+    return MI,EE
+
+
 def wrapper(inputs):
     p,es,L,t,Born=inputs
     MI=measure(inputs)
     return MI
+
+def wrapper_final(inputs):
+    p,es,L,t,Born=inputs
+    MI,EE=measure_final(inputs)
+    return MI,EE
 
 if __name__=="__main__":
     parser=argparse.ArgumentParser()
@@ -33,14 +50,22 @@ if __name__=="__main__":
 
     st=time.time()
     inputs=[(p,es,args.L,t,args.Born) for p in np.linspace(*args.p[:2],int(args.p[2])) for es in range(args.es)]
-    with MPIPoolExecutor() as executor:
-        rs=list(executor.map(wrapper,inputs))
-    # rs=list(map(wrapper,inputs))
 
-    MI=rs
-    MI=np.array(MI).reshape((int(args.p[2]),args.es,t-args.L+1))
+    with MPIPoolExecutor() as executor:
+        rs=list(tqdm(executor.map(wrapper_final,inputs),total=len(inputs)))
+    # rs=list(map(wrapper_final,inputs))
+
+    """tihs is for wrapper for legecy reproduction"""
+    # MI=rs
+    # MI=np.array(MI).reshape((int(args.p[2]),args.es,t-args.L+1))
+
+    """tihs is for wrapper_final for more recent use"""
+    rs=np.array(rs).reshape((int(args.p[2]),args.es,2))
+    MI,EE=rs[:,:,0],rs[:,:,1]
+
     with open('GTN_p({:.2f},{:.2f},{:.0f})_En{:d}_L{:d}_t{:d}_{:s}.pickle'.format(*args.p,args.es,args.L,t,'Born' if args.Born else 'Forced'),'wb') as f:
-        pickle.dump({"args":args,"MI":MI}, f)
+        # pickle.dump({"args":args,"MI":MI}, f)
+        pickle.dump({"args":args,"MI":MI,"EE":EE}, f)
 
     print('Time elapsed: {:.4f}'.format(time.time()-st))
 

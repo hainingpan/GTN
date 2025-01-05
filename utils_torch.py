@@ -80,7 +80,7 @@ def chern_number_quick(Gamma,A_idx,B_idx,C_idx,device,dtype,U1=True,):
     P_BA=P[B_idx[:,None],A_idx[None,:]]
     h=12*torch.pi*1j*(torch.einsum("jk,kl,lj->jkl",P_AB,P_BC,P_CA)-torch.einsum("jl,lk,kj->jkl",P_AC,P_CB,P_BA))
     # assert np.abs(h.imag).max()<1e-10, "Imaginary part of h is too large"
-    nu=h.real.sum().item()
+    nu=h.real.sum()
     # return h
     if U1:
         return nu/2

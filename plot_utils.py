@@ -1,12 +1,12 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-plt.rcParams['text.usetex']=True
-plt.rcParams['font.family']='serif'
-plt.rcParams['font.size']=9
-plt.rcParams['axes.titlesize']=plt.rcParams['font.size']
-plt.rcParams['figure.figsize']=(6.8,4)
-plt.rcParams['text.latex.preamble']=r'\usepackage{amsmath,amssymb,physics,bm}'
+plt.rcParams['text.usetex']=False
+# plt.rcParams['font.family']='serif'
+# plt.rcParams['font.size']=9
+# plt.rcParams['axes.titlesize']=plt.rcParams['font.size']
+# plt.rcParams['figure.figsize']=(6.8,4)
+# plt.rcParams['text.latex.preamble']=r'\usepackage{amsmath,amssymb,physics,bm}'
 
 def plot_chern(nu_list,log=False,C=0,ax=None,label=None,color=None):
     """plot chern number"""
@@ -31,13 +31,16 @@ def plot_C_r(C_r,ax=None,bottomcb=True,label_pos=None):
     if ax is None:
         fig,ax=plt.subplots(1,2,figsize=(5,2.5))
     im0=ax[0].imshow(np.tanh(C_r[0]),cmap='bwr',vmin=-1,vmax=1)
-    place_color_bar_top(im0,ax[0],cbticks=[-1,0,1],cblabels=[-1,0,1],label=r'$\tanh\mathfrak{C}_\mathfrak{t}(\bm{r})$')
+    place_color_bar_top(im0,ax[0],cbticks=[-1,0,1],cblabels=[-1,0,1],label=r'$\tanh\mathcal{C}_\mathfrak{b}(r)$')
+    # label=r'$\tanh\mathcal{C}_\mathfrak{t}(\bm{r})$'
     im1=ax[1].imshow(np.tanh(C_r[1]),cmap='bwr',vmin=-1,vmax=1)
     if bottomcb:
         print(bottomcb)
-        place_color_bar_top(im1,ax[1],cbticks=[-1,0,1],cblabels=[-1,0,1],label=r'$\tanh\mathfrak{C}_\mathfrak{b}(\bm{r})$')
+        place_color_bar_top(im1,ax[1],cbticks=[-1,0,1],cblabels=[-1,0,1],label=r'$\tanh\mathcal{C}_\mathfrak{b}(r)$')
+        # label=r'$\tanh\mathcal{C}_\mathfrak{b}(\bm{r})$'
     else:
-        ax[1].set_title(r'$\tanh\mathfrak{C}_\mathfrak{b}(\bm{r})$')
+        # ax[1].set_title(r'$\tanh\mathcal{C}_\mathfrak{b}(\bm{r})$')
+        pass
     if label_pos is not None:
         if label_pos[0] is not None:
             x,y=label_pos[0]

@@ -334,13 +334,12 @@ class GTN2_torch:
             subregion=self.linearize_index(subregion,2)
         # return Gamma[np.ix_(subregion,subregion)]
         return Gamma[subregion[:,None],subregion[None,:]]
-    # def von_Neumann_entropy_m(self,subregion,Gamma=None,fermion_idx=True):
-    #     c_A=self.c_subregion_m(subregion,Gamma,fermion_idx=fermion_idx)
-    #     val=nla.eigvalsh(1j*c_A)
-    #     # self.val_sh=val
-    #     val=np.sort(val)
-    #     val=(1-val)/2+1e-18j   #\lambda=(1-\xi)/2
-    #     return np.real(-np.sum(val*np.log(val))-np.sum((1-val)*np.log(1-val)))/2
+    def von_Neumann_entropy_m(self,subregion,Gamma=None,fermion_idx=True):
+        c_A=self.c_subregion_m(subregion,Gamma,fermion_idx=fermion_idx)
+        val=torch.linalg.eigvalsh(1j*c_A)
+        val=(1-val)/2  
+        val = val[(val>0) & (val<1)]
+        return -torch.sum(val*torch.log(val))-torch.sum((1-val)*torch.log(1-val))
     def xlogx(self,A):
         val,vec=torch.linalg.eigh(A)
         negative=val<=0

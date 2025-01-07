@@ -2,10 +2,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 plt.rcParams['text.usetex']=False
-# plt.rcParams['font.family']='serif'
-# plt.rcParams['font.size']=9
-# plt.rcParams['axes.titlesize']=plt.rcParams['font.size']
-# plt.rcParams['figure.figsize']=(6.8,4)
+plt.rcParams['font.family']='serif'
+plt.rcParams['font.size']=9
+plt.rcParams['axes.titlesize']=plt.rcParams['font.size']
+plt.rcParams['figure.figsize']=(6.8,4)
 # plt.rcParams['text.latex.preamble']=r'\usepackage{amsmath,amssymb,physics,bm}'
 
 def plot_chern(nu_list,log=False,C=0,ax=None,label=None,color=None):
@@ -17,7 +17,6 @@ def plot_chern(nu_list,log=False,C=0,ax=None,label=None,color=None):
     else:
         ax.plot(np.arange(len(nu_list)),(np.array(nu_list)),'.-',label=label,color=color)
 
-    # ax.set_xlabel('steps')
     ax.set_xlabel('epoch')
     if log:
         ax.set_ylabel(rf'$\abs{{\abs{{\mathcal{{C}}}}-{C}}}$')
@@ -31,15 +30,14 @@ def plot_C_r(C_r,ax=None,bottomcb=True,label_pos=None):
     if ax is None:
         fig,ax=plt.subplots(1,2,figsize=(5,2.5))
     im0=ax[0].imshow(np.tanh(C_r[0]),cmap='bwr',vmin=-1,vmax=1)
-    place_color_bar_top(im0,ax[0],cbticks=[-1,0,1],cblabels=[-1,0,1],label=r'$\tanh\mathcal{C}_\mathfrak{b}(r)$')
-    # label=r'$\tanh\mathcal{C}_\mathfrak{t}(\bm{r})$'
+    place_color_bar_top(im0,ax[0],cbticks=[-1,0,1],cblabels=[-1,0,1],label=r'$\tanh\mathcal{C}_\mathfrak{t}(\mathbf{r})$')
     im1=ax[1].imshow(np.tanh(C_r[1]),cmap='bwr',vmin=-1,vmax=1)
     if bottomcb:
         print(bottomcb)
-        place_color_bar_top(im1,ax[1],cbticks=[-1,0,1],cblabels=[-1,0,1],label=r'$\tanh\mathcal{C}_\mathfrak{b}(r)$')
-        # label=r'$\tanh\mathcal{C}_\mathfrak{b}(\bm{r})$'
+        place_color_bar_top(im1,ax[1],cbticks=[-1,0,1],cblabels=[-1,0,1],label=r'$\tanh\mathcal{C}_\mathfrak{b}(\mathbf{r})$')
+        
     else:
-        # ax[1].set_title(r'$\tanh\mathcal{C}_\mathfrak{b}(\bm{r})$')
+        ax[1].set_title(r'$\tanh\mathcal{C}_\mathfrak{b}(\mathbf{r})$')
         pass
     if label_pos is not None:
         if label_pos[0] is not None:
@@ -75,17 +73,17 @@ def plot_EC(EC,ax=None,bottomcb=True,label_pos=None,vmax=2):
     im0=ax[0].imshow((EC[0])/np.log(2),cmap='Blues',vmin=0,vmax=vmax)
     cb0,cb1=None,None
     if vmax is None:
-        cb0=place_color_bar_top(im0,ax[0],cbticks=None,cblabels=None,label=r'$s(\bm{r})$')
+        cb0=place_color_bar_top(im0,ax[0],cbticks=None,cblabels=None,label=r'$s(\mathbf{r})$')
     else:
-        cb0=place_color_bar_top(im0,ax[0],cbticks=np.linspace(0,vmax,3),cblabels=np.linspace(0,vmax,3),label=r'$s(\bm{r})$')
+        cb0=place_color_bar_top(im0,ax[0],cbticks=np.linspace(0,vmax,3),cblabels=np.linspace(0,vmax,3),label=r'$s(\mathbf{r})$')
     im1=ax[1].imshow((EC[1])/np.log(2),cmap='Blues',vmin=0,vmax=vmax)
     if bottomcb:
         if vmax is None:
-            cb1=place_color_bar_top(im1,ax[1],cbticks=None,cblabels=None,label=r'$s_\mathfrak{b}(\bm{r})$')
+            cb1=place_color_bar_top(im1,ax[1],cbticks=None,cblabels=None,label=r'$s_\mathfrak{b}(\mathbf{r})$')
         else:
-            cb1=place_color_bar_top(im1,ax[1],cbticks=np.linspace(0,vmax,3),cblabels=np.linspace(0,vmax,3),label=r'$s_\mathfrak{b}(\bm{r})$')
+            cb1=place_color_bar_top(im1,ax[1],cbticks=np.linspace(0,vmax,3),cblabels=np.linspace(0,vmax,3),label=r'$s_\mathfrak{b}(\mathbf{r})$')
     else:
-        ax[1].set_title(r'$s_\mathfrak{b}(\bm{r})$')
+        ax[1].set_title(r'$s_\mathfrak{b}(\mathbf{r})$')
     if label_pos is not None:
         if label_pos[0] is not None:
             x,y=label_pos[0]

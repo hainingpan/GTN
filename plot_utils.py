@@ -104,3 +104,16 @@ def plot_EC(EC,ax=None,bottomcb=True,label_pos=None,vmax=2):
 
 
     return im0,im1,cross0,cross1, cb0,cb1
+
+def convert_to_list(a_i):
+    i_list=[]
+    j_list=[]
+    a_list=[]
+    for key,value in a_i.items():
+        i_list.append(key[0])
+        j_list.append(key[1])
+        a_list.append(value)
+    a_list=np.array(a_list)
+    i_list=np.array(i_list)
+    j_list=np.array(j_list)
+    return i_list,j_list,a_list

@@ -119,7 +119,7 @@ class GTN2_torch:
             pass
         elif n_m ==0:
             self.fSWAP(legs_t_lower+legs_bA,state1 = wf_lower, state2=(1,))
-            self.fSWAP(legs_t_lower+legs_bB,state1 = wf_lower, state2=(1,))
+            # self.fSWAP(legs_t_lower+legs_bB,state1 = wf_lower, state2=(1,))
 
         # deplete upper band
         mode_p,n_p=self.measure_single_mode_Born(legs_t_upper,mode=wf_upper)
@@ -127,7 +127,7 @@ class GTN2_torch:
             # this is good
             pass
         elif n_p == 1:
-            self.fSWAP(legs_t_upper+legs_bA,state1 = wf_upper, state2=(1,))
+            # self.fSWAP(legs_t_upper+legs_bA,state1 = wf_upper, state2=(1,))
             self.fSWAP(legs_t_upper+legs_bB,state1 = wf_upper, state2=(1,))
     
     def measure_single_mode_Born(self,legs,mode):

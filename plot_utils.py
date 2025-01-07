@@ -19,7 +19,7 @@ def plot_chern(nu_list,log=False,C=0,ax=None,label=None,color=None):
 
     ax.set_xlabel('epoch')
     if log:
-        ax.set_ylabel(rf'$\abs{{\abs{{\mathcal{{C}}}}-{C}}}$')
+        ax.set_ylabel(rf'$||{{\mathcal{{C}}}}|-{C}|$')
         ax.set_yscale('log')
         ax.set_xscale('log')
     else:

@@ -326,6 +326,7 @@ class GTN2_torch:
             return torch.diag(f).real.reshape((-1,2)).sum(axis=1)
         else:
             return torch.diag(f).real
+        
     def c_subregion_m(self,subregion,Gamma=None,fermion_idx=True):
         if Gamma is None:
             Gamma=self.C_m
@@ -333,14 +334,43 @@ class GTN2_torch:
             subregion=self.linearize_index(subregion,2)
         # return Gamma[np.ix_(subregion,subregion)]
         return Gamma[subregion[:,None],subregion[None,:]]
-    def von_Neumann_entropy_m(self,subregion,Gamma=None,fermion_idx=True):
+    def von_Neumann_entropy_m(self,subregion,Gamma=None,fermion_idx=True,verbose=False):
         st=time.time()
         c_A=self.c_subregion_m(subregion,Gamma,fermion_idx=fermion_idx)
         val=torch.linalg.eigvalsh(1j*c_A)
         val=(1-val)/2  
         val = val[(val>0) & (val<1)]
-        print('entanglement entropy done in {:.4f}'.format(time.time()-st))
+        if verbose:
+            print('entanglement entropy done in {:.4f}'.format(time.time()-st))
         return -torch.sum(val*torch.log(val))-torch.sum((1-val)*torch.log(1-val))
+
+    def tripartite_mutual_information(self,):
+        """
+        TMI uses four quadrants, covers both layer
+        compute the tripartite mutual information as S(A)+S(B)+S(C)-S(AB)-S(BC)-S(AC)+S(ABC)
+        """
+        subA=self.c2g(ilist=np.arange(0,self.Lx//2),jlist=np.arange(0,self.Ly//2))
+        subB=self.c2g(ilist=np.arange(0,self.Lx//2),jlist=np.arange(self.Ly//2,self.Ly))
+        subC=self.c2g(ilist=np.arange(self.Lx//2,self.Lx),jlist=np.arange(0,self.Ly//2))
+
+
+        SA=self.von_Neumann_entropy_m(subA,fermion_idx=False)
+        SB=self.von_Neumann_entropy_m(subB,fermion_idx=False)
+        SC=self.von_Neumann_entropy_m(subC,fermion_idx=False)
+        SAB=self.von_Neumann_entropy_m(torch.cat([subA,subB]),fermion_idx=False)
+        SBC=self.von_Neumann_entropy_m(torch.cat([subB,subC]),fermion_idx=False)
+        SAC=self.von_Neumann_entropy_m(torch.cat([subA,subC]),fermion_idx=False)
+        SABC=self.von_Neumann_entropy_m(torch.cat([subA,subB,subC]),fermion_idx=False)
+        return SA+SB+SC-SAB-SBC-SAC+SABC
+    
+    def c2g(self,ilist,jlist):
+        # ilist=np.arange(0,self.Lx//2)
+        # jlist=np.arange(0,self.Ly)
+        return torch.hstack((
+            torch.from_numpy(self.linearize_idx_span(ilist = ilist,jlist=jlist,layer=0)).cuda(),
+            torch.from_numpy(self.linearize_idx_span(ilist = ilist,jlist=jlist,layer=1)).cuda())
+        )
+
     def xlogx(self,A):
         val,vec=torch.linalg.eigh(A)
         negative=val<=0

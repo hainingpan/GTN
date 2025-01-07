@@ -1,6 +1,7 @@
 import numpy as np
 import numpy.linalg as nla
 import torch
+import time
 from utils_torch import P_contraction_torch, get_O
 from utils import op_single_mode, op_fSWAP, get_Born_tri_op, circle
 
@@ -118,7 +119,7 @@ class GTN2_torch:
             pass
         elif n_m ==0:
             self.fSWAP(legs_t_lower+legs_bA,state1 = wf_lower, state2=(1,))
-            self.fSWAP(legs_t_lower+legs_bB,state1 = wf_lower, state2=(1,))
+            # self.fSWAP(legs_t_lower+legs_bB,state1 = wf_lower, state2=(1,))
 
         # deplete upper band
         mode_p,n_p=self.measure_single_mode_Born(legs_t_upper,mode=wf_upper)
@@ -126,7 +127,7 @@ class GTN2_torch:
             # this is good
             pass
         elif n_p == 1:
-            self.fSWAP(legs_t_upper+legs_bA,state1 = wf_upper, state2=(1,))
+            # self.fSWAP(legs_t_upper+legs_bA,state1 = wf_upper, state2=(1,))
             self.fSWAP(legs_t_upper+legs_bB,state1 = wf_upper, state2=(1,))
     
     def measure_single_mode_Born(self,legs,mode):
@@ -321,8 +322,6 @@ class GTN2_torch:
         C_f=(torch.eye(c_A.shape[0],device=self.device)+1j*c_A)/2
         if n==1:
             f=self.xlogx(C_f,)
-        # else:
-        #     f=
         if fermion:
             return torch.diag(f).real.reshape((-1,2)).sum(axis=1)
         else:
@@ -335,10 +334,12 @@ class GTN2_torch:
         # return Gamma[np.ix_(subregion,subregion)]
         return Gamma[subregion[:,None],subregion[None,:]]
     def von_Neumann_entropy_m(self,subregion,Gamma=None,fermion_idx=True):
+        st=time.time()
         c_A=self.c_subregion_m(subregion,Gamma,fermion_idx=fermion_idx)
         val=torch.linalg.eigvalsh(1j*c_A)
         val=(1-val)/2  
         val = val[(val>0) & (val<1)]
+        print('entanglement entropy done in {:.4f}'.format(time.time()-st))
         return -torch.sum(val*torch.log(val))-torch.sum((1-val)*torch.log(1-val))
     def xlogx(self,A):
         val,vec=torch.linalg.eigh(A)

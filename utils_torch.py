@@ -1,4 +1,5 @@
 import torch
+import time
 def P_contraction_torch(Gamma,Upsilon,ix,ix_bar,device,err,Gamma_like=None,reset_Gamma_like=True,):
     """ same analytical expression for contraction as _contraction(), differences:
     1. assume intput and output tensor have the same shape, thus, it should be Gamma(L,R) -- Upsilon (L,R), where Gamma_R = Upsilon_L =Upsilon_R, such that in-place operator is applied here.
@@ -65,23 +66,18 @@ def get_O(rng,n,device,dtype):
     return torch.linalg.matrix_exp(A)
 
 def chern_number_quick(Gamma,A_idx,B_idx,C_idx,device,dtype,U1=True,):
+    st=time.time()
     P=(torch.eye(Gamma.shape[0],device=device,dtype=dtype)-1j*Gamma)/2
-    # P_AB=P[np.ix_(A_idx,B_idx)]
     P_AB=P[A_idx[:,None],B_idx[None,:]]
-    # P_BC=P[np.ix_(B_idx,C_idx)]
     P_BC=P[B_idx[:,None],C_idx[None,:]]
-    # P_CA=P[np.ix_(C_idx,A_idx)]
     P_CA=P[C_idx[:,None],A_idx[None,:]]
-    # P_AC=P[np.ix_(A_idx,C_idx)]
     P_AC=P[A_idx[:,None],C_idx[None,:]]
-    # P_CB=P[np.ix_(C_idx,B_idx)]
     P_CB=P[C_idx[:,None],B_idx[None,:]]
-    # P_BA=P[np.ix_(B_idx,A_idx)]
     P_BA=P[B_idx[:,None],A_idx[None,:]]
     h=12*torch.pi*1j*(torch.einsum("jk,kl,lj->jkl",P_AB,P_BC,P_CA)-torch.einsum("jl,lk,kj->jkl",P_AC,P_CB,P_BA))
     # assert np.abs(h.imag).max()<1e-10, "Imaginary part of h is too large"
     nu=h.real.sum()
-    # return h
+    print('Chern number done in {:.4f}'.format(time.time()-st))
     if U1:
         return nu/2
     else:

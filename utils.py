@@ -180,7 +180,7 @@ def chern_number_quick(Gamma,A_idx,B_idx,C_idx,U1=True):
     else:
         return nu
 
-def circle(i,j,center,radius, angle):
+def circle(i,j,center,radius, angle, Lx=None,Ly=None):
     i_c=i-center[0]
     j_c=j-center[1]
     return i_c**2/radius[0]**2+j_c**2/radius[1]**2<=1 and (angle[0]<=(np.angle(i_c+j_c*1j)%(2*np.pi))<angle[1])

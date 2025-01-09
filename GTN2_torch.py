@@ -247,8 +247,8 @@ class GTN2_torch:
     #         index = index // dim
     #     return tuple(reversed(out))
 
-    def linearize_idx_span(self,ilist,jlist,layer = 0,replica=0,shape_func=lambda i,j: True, ):
-        multi_index=np.array([(replica,layer,i%self.Lx,j%self.Ly,orbit,maj) for i in ilist for j in jlist for orbit in range(self.orbit) for maj in range(2) if shape_func(i%self.Lx,j%self.Ly)])
+    def linearize_idx_span(self,ilist,jlist,layer = 0,replica=0,shape_func=lambda i,j: True, shift=(0,0)):
+        multi_index=np.array([(replica,layer,(i+shift[0])%self.Lx,(j+shift[1])%self.Ly,orbit,maj) for i in ilist for j in jlist for orbit in range(self.orbit) for maj in range(2) if shape_func(i%self.Lx,j%self.Ly)])
         return np.ravel_multi_index(multi_index.T,(self.replica,self.layer,self.Lx,self.Ly,self.orbit,2))
 
     def delinearize_idx(self,idx):
@@ -295,12 +295,40 @@ class GTN2_torch:
         ix_bar = torch.nonzero(~self.ix_bool,as_tuple=True)[0]
         return ix_bar
     
-    def generate_tripartite_circle(self,radius_factor=(2.6,2.6)):
-        A_idx_0=self.linearize_idx_span(np.arange(self.Lx),np.arange(self.Ly),shape_func=lambda i,j: circle(i,j,center=[self.Lx/2,self.Ly/2],radius=[self.Lx/radius_factor[0],self.Ly/radius_factor[1]],angle=[0,np.pi/3*2]))
-        B_idx_0=self.linearize_idx_span(np.arange(self.Lx),np.arange(self.Ly),shape_func=lambda i,j: circle(i,j,center=[self.Lx/2,self.Ly/2],radius=[self.Lx/radius_factor[0],self.Ly/radius_factor[1]],angle=[np.pi/3*2,np.pi/3*4]))
-        C_idx_0=self.linearize_idx_span(np.arange(self.Lx),np.arange(self.Ly),shape_func=lambda i,j: circle(i,j,center=[self.Lx/2,self.Ly/2],radius=[self.Lx/radius_factor[0],self.Ly/radius_factor[1]],angle=[np.pi/3*4,np.pi/3*6]))
-        # return A_idx_0,B_idx_0,C_idx_0
+    def generate_tripartite_circle(self,center=None,radius_factor=(2.6,2.6),shift=(0,0)):
+        if center is None:
+            center=[self.Lx/2,self.Ly/2]
+        radius = [self.Lx/radius_factor[0],self.Ly/radius_factor[1]]
+        
+        A_idx_0=self.linearize_idx_span(np.arange(self.Lx),np.arange(self.Ly),shape_func=lambda i,j: circle(i,j,Lx=self.Lx,Ly=self.Ly,center=center,radius=radius,angle=[0,np.pi/3*2]),shift=shift)
+        B_idx_0=self.linearize_idx_span(np.arange(self.Lx),np.arange(self.Ly),shape_func=lambda i,j: circle(i,j,Lx=self.Lx,Ly=self.Ly,center=center,radius=radius,angle=[np.pi/3*2,np.pi/3*4]),shift=shift)
+        C_idx_0=self.linearize_idx_span(np.arange(self.Lx),np.arange(self.Ly),shape_func=lambda i,j: circle(i,j,Lx=self.Lx,Ly=self.Ly,center=center,radius=radius,angle=[np.pi/3*4,np.pi/3*6]),shift=shift)
         return torch.tensor(A_idx_0,device=self.device),torch.tensor(B_idx_0,device=self.device),torch.tensor(C_idx_0,device=self.device)
+    
+    
+    def chern_number_quick(self,U1=True,shift=(0,0),selfaverage=False):
+        # st=time.time()
+        if selfaverage:
+            return torch.tensor([self.chern_number_quick(shift=(i,j)) for i in range(self.Lx) for j in range(self.Ly)]).mean()
+        else:
+            A_idx,B_idx,C_idx = self.generate_tripartite_circle(shift=shift)
+            P=(torch.eye(self.C_m.shape[0],device=self.device,dtype=self.dtype_complex)-1j*self.C_m)/2
+            P_AB=P[A_idx[:,None],B_idx[None,:]]
+            P_BC=P[B_idx[:,None],C_idx[None,:]]
+            P_CA=P[C_idx[:,None],A_idx[None,:]]
+            P_AC=P[A_idx[:,None],C_idx[None,:]]
+            P_CB=P[C_idx[:,None],B_idx[None,:]]
+            P_BA=P[B_idx[:,None],A_idx[None,:]]
+            h=12*torch.pi*1j*(torch.einsum("jk,kl,lj->jkl",P_AB,P_BC,P_CA)-torch.einsum("jl,lk,kj->jkl",P_AC,P_CB,P_BA))
+            # assert np.abs(h.imag).max()<1e-10, "Imaginary part of h is too large"
+            nu=h.real.sum()
+            
+
+        # print('Chern number done in {:.4f}'.format(time.time()-st))
+            if U1:
+                return nu/2
+            else:
+                return nu
 
     def local_Chern_marker(self,Gamma,shift=[0,0],n_maj=2,U1=True):
         replica,layer,x,y,orbit,maj = np.unravel_index(np.arange(Gamma.shape[0]),(self.replica,self.layer,self.Lx,self.Ly,self.orbit,n_maj))
@@ -344,24 +372,33 @@ class GTN2_torch:
             print('entanglement entropy done in {:.4f}'.format(time.time()-st))
         return -torch.sum(val*torch.log(val))-torch.sum((1-val)*torch.log(1-val))
 
-    def tripartite_mutual_information(self,):
+    def tripartite_mutual_information(self,shift=(0,0),selfaverage=False):
         """
-        TMI uses four quadrants, covers both layer
+        TMI uses four quadrants, covers both layer, [Assuming only one 1 replica]
         compute the tripartite mutual information as S(A)+S(B)+S(C)-S(AB)-S(BC)-S(AC)+S(ABC)
         """
-        subA=self.c2g(ilist=np.arange(0,self.Lx//2),jlist=np.arange(0,self.Ly//2))
-        subB=self.c2g(ilist=np.arange(0,self.Lx//2),jlist=np.arange(self.Ly//2,self.Ly))
-        subC=self.c2g(ilist=np.arange(self.Lx//2,self.Lx),jlist=np.arange(0,self.Ly//2))
+        assert self.replica==1, "Tripartite mutual information only works for one replica"
+        if selfaverage:
+            return torch.tensor([self.tripartite_mutual_information(shift=(i,j)) for i in range(self.Lx) for j in range(self.Ly)]).mean()
+        else:
+            Lx_first_half = (np.arange(self.Lx//2) + shift[0])%self.Lx
+            Ly_first_half = (np.arange(self.Ly//2) +shift[1])%self.Ly
+            Lx_second_half = (np.arange(self.Lx//2,self.Lx) + shift[0])%self.Lx
+            Ly_second_half = (np.arange(self.Ly//2,self.Ly) + shift[1])%self.Ly
+            subA=self.c2g(ilist=Lx_first_half,jlist=Ly_first_half)
+            subB=self.c2g(ilist=Lx_first_half,jlist=Ly_second_half)
+            subC=self.c2g(ilist=Lx_second_half,jlist=Ly_first_half)
+            subD=self.c2g(ilist=Lx_second_half,jlist=Ly_second_half)
 
-
-        SA=self.von_Neumann_entropy_m(subA,fermion_idx=False)
-        SB=self.von_Neumann_entropy_m(subB,fermion_idx=False)
-        SC=self.von_Neumann_entropy_m(subC,fermion_idx=False)
-        SAB=self.von_Neumann_entropy_m(torch.cat([subA,subB]),fermion_idx=False)
-        SBC=self.von_Neumann_entropy_m(torch.cat([subB,subC]),fermion_idx=False)
-        SAC=self.von_Neumann_entropy_m(torch.cat([subA,subC]),fermion_idx=False)
-        SABC=self.von_Neumann_entropy_m(torch.cat([subA,subB,subC]),fermion_idx=False)
-        return SA+SB+SC-SAB-SBC-SAC+SABC
+            SA=self.von_Neumann_entropy_m(subA,fermion_idx=False)
+            SB=self.von_Neumann_entropy_m(subB,fermion_idx=False)
+            SC=self.von_Neumann_entropy_m(subC,fermion_idx=False)
+            SAB=self.von_Neumann_entropy_m(torch.cat([subA,subB]),fermion_idx=False)
+            SBC=self.von_Neumann_entropy_m(torch.cat([subB,subC]),fermion_idx=False)
+            SAC=self.von_Neumann_entropy_m(torch.cat([subA,subC]),fermion_idx=False)
+            # SABC=self.von_Neumann_entropy_m(torch.cat([subA,subB,subC]),fermion_idx=False)
+            SABC=self.von_Neumann_entropy_m(subD,fermion_idx=False)
+            return SA+SB+SC-SAB-SBC-SAC+SABC
     
     def c2g(self,ilist,jlist):
         # ilist=np.arange(0,self.Lx//2)

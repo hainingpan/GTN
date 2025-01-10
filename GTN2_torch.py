@@ -6,7 +6,7 @@ from utils_torch import P_contraction_torch, get_O
 from utils import op_single_mode, op_fSWAP, get_Born_tri_op, circle
 
 class GTN2_torch:
-    def __init__(self,Lx,Ly,history=True,seed=None,random_init=False,random_U1=False,bcx=1,bcy=1,orbit=1,layer=1,replica=1,nshell=1,gpu=True,complex128=True,err=1e-10):
+    def __init__(self,Lx,Ly,history=True,seed=None,random_init=False,random_U1=False,bcx=1,bcy=1,orbit=1,layer=1,replica=1,nshell=1,gpu=True,complex128=True,err=1e-8):
         self.Lx= Lx # complex fermion sites
         self.Ly=Ly # complex fermion sites
         self.L = Lx* Ly*orbit # (Lx,Ly) in complex fermion sites
@@ -319,11 +319,9 @@ class GTN2_torch:
             P_AC=P[A_idx[:,None],C_idx[None,:]]
             P_CB=P[C_idx[:,None],B_idx[None,:]]
             P_BA=P[B_idx[:,None],A_idx[None,:]]
-            h=12*torch.pi*1j*(torch.einsum("jk,kl,lj->jkl",P_AB,P_BC,P_CA)-torch.einsum("jl,lk,kj->jkl",P_AC,P_CB,P_BA))
+            h=-12*torch.pi*(torch.einsum("jk,kl,lj->jkl",P_AB,P_BC,P_CA)-torch.einsum("jl,lk,kj->jkl",P_AC,P_CB,P_BA)).imag
             # assert np.abs(h.imag).max()<1e-10, "Imaginary part of h is too large"
-            nu=h.real.sum()
-            
-
+            nu=h.sum()
         # print('Chern number done in {:.4f}'.format(time.time()-st))
             if U1:
                 return nu/2

@@ -40,24 +40,30 @@ def P_contraction_torch(Gamma,Upsilon,ix,ix_bar,device,err,Gamma_like=None,reset
     # Gamma-=Gamma.T
     # Gamma/=2
     # print(torch.abs(torch.einsum(Gamma,[0,1],Gamma,[1,0],[0])+1).max())
-    if torch.abs(torch.einsum(Gamma,[0,1],Gamma,[1,0],[0])+1).max() > err:
+    max_err=max_error(Gamma)
+    if  max_err > err:
+        st=time.time()
+        print(f'Purification: {max_err}')
         Gamma=purify(Gamma)
+        print('Purification done in {:.4f} {}'.format(time.time()-st,max_error(Gamma)))
         Gamma=Gamma-Gamma.T
         Gamma/=2
 
+def max_error(Gamma):
+    return torch.abs(torch.einsum(Gamma,[0,1],Gamma,[1,0],[0])+1).max()
+# def purify(A):
+#     A = (A-A.T)/2
+#     U, _, Vh=torch.linalg.svd(A)
+#     return U@Vh
 
 def purify(A):
-    U, _, Vh=torch.linalg.svd(A)
-    return U@Vh
-
-# def purify(A):
-#     # purify A, see App. B2 in PhysRevB.106.134206
-#     val,vec=torch.linalg.eigh(A/1j)
-#     mask=val<0
-#     val[mask]=-1
-#     val[~mask]=1
-#     val=val+0j
-#     return -(vec@torch.diag(val)@vec.conj().T).imag
+    # purify A, see App. B2 in PhysRevB.106.134206
+    val,vec=torch.linalg.eigh(A/1j)
+    mask=val<0
+    val[mask]=-1
+    val[~mask]=1
+    val=val+0j
+    return -(vec@torch.diag(val)@vec.conj().T).imag
 
 def get_O(rng,n,device,dtype):
     # rng=np.random.default_rng(rng)

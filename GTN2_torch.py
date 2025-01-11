@@ -175,10 +175,10 @@ class GTN2_torch:
             self.n_history=[state1,state2]
             self.i_history=[ix]
 
-    def randomize(self,legs):
+    def randomize(self,legs, scale=1):
         """ legs is the majorana site index, 
         simply randomize the parity"""
-        phi=torch.rand((1,),generator=self.rng,device=self.device,dtype=self.dtype_float)*2*np.pi
+        phi=torch.rand((1,),generator=self.rng,device=self.device,dtype=self.dtype_float)*2*np.pi * scale
         n_list=torch.tensor([0,torch.cos(phi),torch.sin(phi)],device=self.device,dtype=self.dtype_float)
         self.measure(n_list,ix=legs)
 

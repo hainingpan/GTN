@@ -309,7 +309,7 @@ class GTN2_torch:
     def chern_number_quick(self,U1=True,shift=(0,0),selfaverage=False):
         # st=time.time()
         if selfaverage:
-            return torch.tensor([self.chern_number_quick(shift=(i,j)) for i in range(self.Lx) for j in range(self.Ly)]).mean()
+            return torch.stack([self.chern_number_quick(shift=(i,j)) for i in range(self.Lx) for j in range(self.Ly)]).mean()
         else:
             A_idx,B_idx,C_idx = self.generate_tripartite_circle(shift=shift)
             P=(torch.eye(self.C_m.shape[0],device=self.device,dtype=self.dtype_complex)-1j*self.C_m)/2
@@ -369,6 +369,23 @@ class GTN2_torch:
         if verbose:
             print('entanglement entropy done in {:.4f}'.format(time.time()-st))
         return -torch.sum(val*torch.log(val))-torch.sum((1-val)*torch.log(1-val))
+    def half_cut_entanglement_entropy(self,shift=(0,0),selfaverage=False):
+        if selfaverage:
+            return torch.stack([self.half_cut_entanglement_entropy(shift=(i,j)) for i in range(self.Lx) for j in range(self.Ly)]).mean()
+        else:
+            Lx_first_half = (np.arange(self.Lx//2) + shift[0])%self.Lx
+            Ly_first_half = (np.arange(self.Ly//2) +shift[1])%self.Ly
+            Lx_second_half = (np.arange(self.Lx//2,self.Lx) + shift[0])%self.Lx
+            Ly_second_half = (np.arange(self.Ly//2,self.Ly) + shift[1])%self.Ly
+            subA=self.c2g(ilist=Lx_first_half,jlist=Ly_first_half)
+            subB=self.c2g(ilist=Lx_first_half,jlist=Ly_second_half)
+            subC=self.c2g(ilist=Lx_second_half,jlist=Ly_first_half)
+            # subD=self.c2g(ilist=Lx_second_half,jlist=Ly_second_half)
+            SAB=self.von_Neumann_entropy_m(torch.cat([subA,subB]),fermion_idx=False)
+            SAC=self.von_Neumann_entropy_m(torch.cat([subA,subC]),fermion_idx=False)
+            return (SAB+SAC)/2
+
+
 
     def tripartite_mutual_information(self,shift=(0,0),selfaverage=False):
         """
@@ -377,7 +394,7 @@ class GTN2_torch:
         """
         assert self.replica==1, "Tripartite mutual information only works for one replica"
         if selfaverage:
-            return torch.tensor([self.tripartite_mutual_information(shift=(i,j)) for i in range(self.Lx) for j in range(self.Ly)]).mean()
+            return torch.stack([self.tripartite_mutual_information(shift=(i,j)) for i in range(self.Lx) for j in range(self.Ly)]).mean()
         else:
             Lx_first_half = (np.arange(self.Lx//2) + shift[0])%self.Lx
             Ly_first_half = (np.arange(self.Ly//2) +shift[1])%self.Ly

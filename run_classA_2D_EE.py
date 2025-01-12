@@ -7,10 +7,8 @@ from utils_torch import *
 
 
 def measure_feedback_layer(gtn2,):
-    # margin_x=0 if gtn2.bcx==1 else gtn2.nshell
     margin_x=0 
     ilist = range(margin_x,gtn2.Lx-margin_x)
-    # margin_y=0 if gtn2.bcy==1 else gtn2.nshell
     margin_y=0
     jlist = range(margin_y,gtn2.Ly-margin_y)
     ij_list = [(i,j) for i in (ilist) for j in (jlist)]

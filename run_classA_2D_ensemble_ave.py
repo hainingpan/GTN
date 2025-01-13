@@ -58,6 +58,17 @@ def dummy(inputs):
     L, nshell,mu,sigma,seed=inputs
     gtn2_torch=GTN2_torch(Lx=L,Ly=L,history=False,random_init=False,random_U1=True,bcx=1,bcy=1,seed=seed,orbit=2,nshell=nshell,layer=2,replica=1,complex128=True)
     return gtn2_torch
+
+def correlation_length(C_m,replica,layer,Lx,Ly,):
+    D=(replica,layer,Lx,Ly,2,2)
+    C_ij=C_m.reshape(D+D)[0,0,:,:,:,:,0,0,:,:,:,:].mean(dim=(2,3,6,7))
+    Cr_i=torch.stack([C_ij[i,j,(i+torch.arange(Lx//2)+1)%Lx,j].cpu() for i in range(Lx) for j in range(Ly)]).mean(dim=0)
+    Cr_j=torch.stack([C_ij[i,j,i,(j+torch.arange(Ly//2)+1)%Ly].cpu() for i in range(Lx) for j in range(Ly)]).mean(dim=0)
+    c_ij=C_m.reshape(D+D)[0,1,:,:,:,:,0,1,:,:,:,:].mean(dim=(2,3,6,7))
+    cr_i=torch.stack([c_ij[i,j,(i+torch.arange(Lx//2)+1)%Lx,j].cpu() for i in range(Lx) for j in range(Ly)]).mean(dim=0)
+    cr_j=torch.stack([c_ij[i,j,i,(j+torch.arange(Ly//2)+1)%Ly].cpu() for i in range(Lx) for j in range(Ly)]).mean(dim=0)
+    return Cr_i,Cr_j,cr_i,cr_j
+
 if __name__ == '__main__':
     parser=argparse.ArgumentParser()
     parser.add_argument('--L','-L',type=int)
@@ -73,14 +84,21 @@ if __name__ == '__main__':
     inputs=[(args.L, args.nshell, args.mu,args.sigma, seed+args.seed0) for seed in range(args.es)]
     gtn2_dummy=dummy(inputs[0])
     gtn2_dummy.C_m.zero_()
+    C_m_sq=gtn2_dummy.C_m.clone()
     for inp in inputs:
-        gtn2_dummy.C_m+= run(inp)
+        C_m=run(inp)
+        gtn2_dummy.C_m+= C_m
+        C_m_sq+=C_m**2
 
     gtn2_dummy.C_m/=args.es
     nu=gtn2_dummy.chern_number_quick(selfaverage=True)
+
+    C_m_sq/=args.es
+    Cr_i,Cr_j, cr_i,cr_j =correlation_length(C_m_sq,replica=1,layer=2,Lx=args.L,Ly=args.L)
+    
     
     fn=f'class_A_2D_L{args.L}_nshell{args.nshell}_mu{args.mu:.2f}_sigma{args.sigma:.3f}_es{args.es}_seed{args.seed0}_Chern_ave.pt'
-    torch.save({'Chern':nu,'args':args},fn)
+    torch.save({'Chern':nu,'Cr_i':Cr_i,'Cr_j':Cr_j, 'cr_i':cr_i, 'cr_j':cr_j,'args':args,},fn)
     
     print('Time elapsed: {:.4f}'.format(time.time()-st))
 

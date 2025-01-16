@@ -432,6 +432,19 @@ class GTN2_torch:
         val=val+0j
         return vec@torch.diag(val)@vec.conj().T
 
+    def C_m_selfaverage(self):
+        """take the selfaverage of Gamma, by shifting all possible coordinates"""
+        idx=(self.replica, self.layer, self.Lx*self.Ly,self.orbit,2)
+        C_m_reshape=self.C_m.view( idx*2)
+        d_list =[1]*len(idx*2)
+        Lxy=self.Lx*self.Ly
+        d_list[2]=d_list[7]=Lxy
+        kernel = torch.eye(Lxy,device=self.device).reshape(d_list)/(Lxy)
+        return torch.fft.ifft2(torch.fft.fft2(C_m_reshape,dim=(2,7))*torch.fft.fft2(kernel,dim=(2,7)),dim=(2,7)).reshape(self.C_m.shape).real
+
+
+
+
 def amplitude(nshell,nkx=500,nky=500,tau=[0,1],mu=1,geometry = 'square', lower=True, C=1):
     """if gemoetry is square, then the shape is [i-nshell,i+nshell]x[j-nshell,j+nshell]"""
     

@@ -91,14 +91,17 @@ if __name__ == '__main__':
         C_m_sq+=C_m**2
 
     gtn2_dummy.C_m/=args.es
+    gtn2_dummy.C_m = purify(gtn2_dummy.C_m)
     nu=gtn2_dummy.chern_number_quick(selfaverage=True)
 
     C_m_sq/=args.es
     Cr_i,Cr_j, cr_i,cr_j =correlation_length(C_m_sq,replica=1,layer=2,Lx=args.L,Ly=args.L)
     
     
-    fn=f'class_A_2D_L{args.L}_nshell{args.nshell}_mu{args.mu:.2f}_sigma{args.sigma:.3f}_es{args.es}_seed{args.seed0}_Chern_ave.pt'
+    # fn=f'class_A_2D_L{args.L}_nshell{args.nshell}_mu{args.mu:.2f}_sigma{args.sigma:.3f}_es{args.es}_seed{args.seed0}_Chern_ave.pt'
+    fn=f'class_A_2D_L{args.L}_nshell{args.nshell}_mu{args.mu:.2f}_sigma{args.sigma:.3f}_es{args.es}_seed{args.seed0}_Chern_ave_purify.pt'
     torch.save({'Chern':nu,'Cr_i':Cr_i,'Cr_j':Cr_j, 'cr_i':cr_i, 'cr_j':cr_j,'args':args,},fn)
+
     
     print('Time elapsed: {:.4f}'.format(time.time()-st))
 

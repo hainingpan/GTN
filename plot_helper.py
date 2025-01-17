@@ -115,3 +115,25 @@ def convert_to_list(a_i):
     i_list=np.array(i_list)
     j_list=np.array(j_list)
     return i_list,j_list,a_list
+
+def plot_eigvals(C_m_,ax=None):
+    import torch
+    if ax is None:
+        fig,ax=plt.subplots(figsize=(4,3))
+    # C_m_=gtn2_torch_0_list[0].C_m_selfaverage()
+    L = C_m_.shape[0]//2
+    C_m_t=C_m_[:L,:L]
+    C_m_b=C_m_[L:,L:]
+
+    eigval_t=torch.linalg.eigvalsh(C_m_t/1j)
+    eigval_b=torch.linalg.eigvalsh(C_m_b/1j)
+    eigvals=torch.concat([eigval_t,eigval_b])
+    color_list = np.array(['b']*eigval_t.shape[0]+['r']*eigval_b.shape[0])
+    order=eigvals.argsort()
+    color_list=color_list[order.cpu()]
+    eigvals_s=eigvals[order].cpu()
+    ax.plot(torch.linalg.eigvalsh(C_m_/1j).cpu(),'.',color='gray')
+    ax.scatter(np.arange((eigvals_s).shape[0]),eigvals_s.cpu(),color=color_list)
+    ax.set_xlabel('index')
+    ax.set_ylabel('Eigenvalues')
+    ax.set_title(f'Spectral Gap: Top {torch.abs(eigval_t).min():.3f} Bottom {torch.abs(eigval_b).min():.3f}')

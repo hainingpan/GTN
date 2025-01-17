@@ -57,10 +57,12 @@ def run(inputs):
     print('Chern number calculated in {:.4f}'.format(time.time()-st))
     TMI=gtn2_torch.tripartite_mutual_information(selfaverage=True)
     print('TMI calculated in {:.4f}'.format(time.time()-st))
+    OP=gtn2_torch.order_parameter()
+    print('OP calculated in {:.4f}'.format(time.time()-st))
     # free, total = torch.cuda.mem_get_info()
     # mem_used_MB = (total - free) / 1024 ** 2
     # print(mem_used_MB)
-    return nu,TMI
+    return nu,TMI,OP
 
 
 if __name__ == '__main__':
@@ -78,14 +80,16 @@ if __name__ == '__main__':
     inputs=[(args.L, args.nshell, args.mu,args.sigma, seed+args.seed0) for seed in range(args.es)]
     nu_list=[]
     TMI_list=[]
+    OP_list=[]
     for inp in inputs:
-        nu, TMI = run(inp)
+        nu, TMI, OP = run(inp)
         nu_list.append(nu)
         TMI_list.append(TMI)
+        OP_list.append(OP)
 
     
     fn=f'class_A_2D_L{args.L}_nshell{args.nshell}_mu{args.mu:.2f}_sigma{args.sigma:.3f}_es{args.es}_seed{args.seed0}_SE.pt'
-    torch.save({'Chern':torch.tensor(nu_list),'TMI':torch.tensor(TMI_list),'args':args},fn)
+    torch.save({'Chern':torch.tensor(nu_list),'TMI':torch.tensor(TMI_list),'OP':torch.tensor(OP_list),'args':args},fn)
     
     print('Time elapsed: {:.4f}'.format(time.time()-st))
 

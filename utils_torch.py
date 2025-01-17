@@ -46,8 +46,7 @@ def P_contraction_torch(Gamma,Upsilon,ix,ix_bar,device,err,Gamma_like=None,reset
         print(f'Purification: {max_err}')
         Gamma=purify(Gamma)
         print('Purification done in {:.4f} {}'.format(time.time()-st,max_error(Gamma)))
-        Gamma=Gamma-Gamma.T
-        Gamma/=2
+        
 
 def max_error(Gamma):
     return torch.abs(torch.einsum(Gamma,[0,1],Gamma,[1,0],[0])+1).max()
@@ -63,7 +62,10 @@ def purify(A):
     val[mask]=-1
     val[~mask]=1
     val=val+0j
-    return -(vec@torch.diag(val)@vec.conj().T).imag
+    A= -(vec@torch.diag(val)@vec.conj().T).imag
+    A=A-A.T
+    A/=2
+    return A
 
 def get_O(rng,n,device,dtype):
     # rng=np.random.default_rng(rng)

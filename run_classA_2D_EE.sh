@@ -24,13 +24,13 @@ read -r  L mu nshell sigma<<< $(sed -n "ARRARIDXp" $PARAMS_FILE)
 # srun singularity exec --nv /scratch/hp636/pytorch.sif python run_classA_2D_EE.py --L $L --nshell $nshell --mu $mu --es 50
 
 # normal script (most common)
-# srun singularity exec --nv /scratch/hp636/pytorch.sif python run_classA_2D_EE.py --L $L --nshell $nshell --mu $mu --es 50 --sigma $sigma --seed0 0
+srun singularity exec --nv /scratch/hp636/pytorch.sif python run_classA_2D_EE.py --L $L --nshell $nshell --mu $mu --es 50 --sigma $sigma --seed0 0
 
 # to be merge with es -50
 # srun singularity exec --nv /scratch/hp636/pytorch.sif python run_classA_2D_EE.py --L $L --nshell $nshell --mu $mu --es 250 --sigma $sigma --seed0 50
 
 # Chern average ensemble
-srun singularity exec --nv /scratch/hp636/pytorch.sif python run_classA_2D_ensemble_ave.py --L $L --nshell $nshell --mu $mu --es 600 --sigma $sigma --seed0 0
+# srun singularity exec --nv /scratch/hp636/pytorch.sif python run_classA_2D_ensemble_ave.py --L $L --nshell $nshell --mu $mu --es 200 --sigma $sigma --seed0 0
 
 # To compute L log L
 # srun singularity exec --nv /scratch/hp636/pytorch.sif python run_classA_2D_EE2.py --L $L --nshell $nshell --mu $mu --es 200 --sigma 0

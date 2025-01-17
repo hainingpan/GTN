@@ -1,3 +1,4 @@
+# this script is for Chern number, correlation length, mixed state spectral gap, with ensemble average
 from GTN2_torch import *
 import torch
 import argparse
@@ -51,8 +52,7 @@ def run(inputs):
         randomize(gtn2_torch,measure=True)
         if sigma>0:
             randomize_inter(gtn2_torch,scale=sigma)
-        
-    return gtn2_torch.C_m
+    return gtn2_torch.C_m_selfaverage()
 
 def dummy(inputs):
     L, nshell,mu,sigma,seed=inputs
@@ -91,6 +91,10 @@ if __name__ == '__main__':
         C_m_sq+=C_m**2
 
     gtn2_dummy.C_m/=args.es
+    eigvals=torch.linalg.eigvalsh(gtn2_dummy.C_m/1j)
+    eigvals_t=torch.linalg.eigvalsh(gtn2_dummy.C_m[:2*gtn2_dummy.L,:2*gtn2_dummy.L]/1j)
+    eigvals_b=torch.linalg.eigvalsh(gtn2_dummy.C_m[2*gtn2_dummy.L:,2*gtn2_dummy.L:]/1j)
+
     gtn2_dummy.C_m = purify(gtn2_dummy.C_m)
     nu=gtn2_dummy.chern_number_quick(selfaverage=True)
 
@@ -100,7 +104,7 @@ if __name__ == '__main__':
     
     # fn=f'class_A_2D_L{args.L}_nshell{args.nshell}_mu{args.mu:.2f}_sigma{args.sigma:.3f}_es{args.es}_seed{args.seed0}_Chern_ave.pt'
     fn=f'class_A_2D_L{args.L}_nshell{args.nshell}_mu{args.mu:.2f}_sigma{args.sigma:.3f}_es{args.es}_seed{args.seed0}_Chern_ave_purify.pt'
-    torch.save({'Chern':nu,'Cr_i':Cr_i,'Cr_j':Cr_j, 'cr_i':cr_i, 'cr_j':cr_j,'args':args,},fn)
+    torch.save({'Chern':nu,'Cr_i':Cr_i,'Cr_j':Cr_j, 'cr_i':cr_i, 'cr_j':cr_j,'eigvals':eigvals,'eigvals_t':eigvals_t,'eigvals_b':eigvals_b,'args':args,},fn)
 
     
     print('Time elapsed: {:.4f}'.format(time.time()-st))

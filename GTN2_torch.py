@@ -3,7 +3,7 @@ import numpy.linalg as nla
 import torch
 import time
 from utils_torch import P_contraction_torch, get_O
-from utils import op_single_mode, op_fSWAP, get_Born_tri_op, circle
+from utils import op_single_mode, op_fSWAP, circle
 
 class GTN2_torch:
     def __init__(self,Lx,Ly,history=True,seed=None,random_init=False,random_U1=False,bcx=1,bcy=1,orbit=1,layer=1,replica=1,nshell=1,gpu=True,complex128=True,err=1e-8):
@@ -130,6 +130,26 @@ class GTN2_torch:
             # self.fSWAP(legs_t_upper+legs_bA,state1 = wf_upper, state2=(1,))
             self.fSWAP(legs_t_upper+legs_bB,state1 = wf_upper, state2=(1,))
     
+    def order_parameter(self,mu=None,region=None):
+        """ the order parameter is defined as sum_{ij} (1-n_- + n_+)/L; such that it is effective the defect density per unit cell"""
+        if mu is None:
+            mu = list(self.a_i.keys())[0]
+        n_lower, n_upper = 0,0
+        for i in range(self.Lx):
+            for j in range(self.Ly):
+                legs_t_lower,wf_lower=self.generate_ij_wf(i,j,self.a_i[mu],self.b_i[mu],self.bcx,self.bcy,region=region)
+                legs_t_upper,wf_upper=self.generate_ij_wf(i,j,self.A_i[mu],self.B_i[mu],self.bcx,self.bcy,region=region)
+                legs_t_lower=torch.tensor(legs_t_lower,device=self.device)
+                legs_t_upper=torch.tensor(legs_t_upper,device=self.device)
+                Gamma = self.C_m[legs_t_lower[:,None],legs_t_lower[None,:]]
+                n_lower += self.get_Born(Gamma,u=wf_lower)
+                Gamma = self.C_m[legs_t_upper[:,None],legs_t_upper[None,:]]
+                n_upper += self.get_Born(Gamma,u=wf_upper)
+        return 1-(n_lower-n_upper)/(self.Lx*self.Ly)
+
+
+                
+
     def measure_single_mode_Born(self,legs,mode):
         """measure the single mode with mode = (wf, n), wavefunction and occupation number 
         """

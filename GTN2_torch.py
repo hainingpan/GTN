@@ -452,10 +452,10 @@ class GTN2_torch:
         val=val+0j
         return vec@torch.diag(val)@vec.conj().T
 
-    def C_m_selfaverage(self):
+    def C_m_selfaverage(self,n=1):
         """take the selfaverage of Gamma, by shifting all possible coordinates"""
         idx=(self.replica, self.layer, self.Lx*self.Ly,self.orbit,2)
-        C_m_reshape=self.C_m.view( idx*2)
+        C_m_reshape=(self.C_m**n).view(idx*2)
         d_list =[1]*len(idx*2)
         Lxy=self.Lx*self.Ly
         d_list[2]=d_list[7]=Lxy

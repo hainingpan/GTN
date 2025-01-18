@@ -52,7 +52,7 @@ def run(inputs):
         randomize(gtn2_torch,measure=True)
         if sigma>0:
             randomize_inter(gtn2_torch,scale=sigma)
-    return gtn2_torch.C_m_selfaverage()
+    return gtn2_torch.C_m_selfaverage(n=1), gtn2_torch.C_m_selfaverage(n=2)
 
 def dummy(inputs):
     L, nshell,mu,sigma,seed=inputs
@@ -86,9 +86,9 @@ if __name__ == '__main__':
     gtn2_dummy.C_m.zero_()
     C_m_sq=gtn2_dummy.C_m.clone()
     for inp in inputs:
-        C_m=run(inp)
+        C_m,C_m2=run(inp)
         gtn2_dummy.C_m+= C_m
-        C_m_sq+=C_m**2
+        C_m_sq+=C_m2
 
     gtn2_dummy.C_m/=args.es
     eigvals=torch.linalg.eigvalsh(gtn2_dummy.C_m/1j)

@@ -54,13 +54,7 @@ def run(inputs):
         
     st=time.time()
     EE = gtn2_torch.half_cut_entanglement_entropy(selfaverage=True)
-    # nu=gtn2_torch.chern_number_quick(selfaverage=True)
-    # print('Chern number calculated in {:.4f}'.format(time.time()-st))
-    # TMI=gtn2_torch.tripartite_mutual_information(selfaverage=True)
     print('EE calculated in {:.4f}'.format(time.time()-st))
-    # free, total = torch.cuda.mem_get_info()
-    # mem_used_MB = (total - free) / 1024 ** 2
-    # print(mem_used_MB)
     return EE
 
 

@@ -31,7 +31,7 @@ def randomize_inter(gtn2,scale=1):
         gtn2.randomize([i, (i+1)%(2*gtn2.L)],scale=scale)
 
 def run(inputs):
-    L, nshell,mu,sigma,tf,seed=inputs
+    L, nshell,mu,sigma,seed=inputs
     gtn2_torch=GTN2_torch(Lx=L,Ly=L,history=False,random_init=False,random_U1=True,bcx=1,bcy=1,seed=seed,orbit=2,nshell=nshell,layer=2,replica=1,complex128=True)
 
     mu_list=[mu]
@@ -46,7 +46,7 @@ def run(inputs):
 
     A_idx_0,B_idx_0,C_idx_0 = gtn2_torch.generate_tripartite_circle()
 
-    for i in tqdm(range(tf*gtn2_torch.Lx)):
+    for i in tqdm(range(gtn2_torch.Lx)):
         measure_feedback_layer(gtn2_torch)
         randomize(gtn2_torch,measure=True)
         if sigma>0:
@@ -72,13 +72,12 @@ if __name__ == '__main__':
     parser.add_argument('--mu','-mu',type=float)
     parser.add_argument('--es','-es',type=int,default=10)
     parser.add_argument('--seed0','-seed0',type=int,default=0)
-    parser.add_argument('--tf','-tf',type=int,default=1,help='the final time will be tf*L')
     parser.add_argument('--sigma','-sigma',type=float,default=0,help='local U(1) scale,  phase is [0,2pi*sigma]')
 
     args=parser.parse_args()
 
     st=time.time()
-    inputs=[(args.L, args.nshell, args.mu,args.sigma, args.tf, seed+args.seed0) for seed in range(args.es)]
+    inputs=[(args.L, args.nshell, args.mu,args.sigma,  seed+args.seed0) for seed in range(args.es)]
     nu_list=[]
     TMI_list=[]
     OP_list=[]
@@ -90,7 +89,6 @@ if __name__ == '__main__':
 
     
     fn=f'class_A_2D_L{args.L}_nshell{args.nshell}_mu{args.mu:.2f}_sigma{args.sigma:.3f}_es{args.es}_seed{args.seed0}_SE.pt'
-    fn=f'class_A_2D_L{args.L}_nshell{args.nshell}_mu{args.mu:.2f}_sigma{args.sigma:.3f}_es{args.es}_seed{args.seed0}_tf{args.tf}_SE.pt'
     torch.save({'Chern':torch.tensor(nu_list),'TMI':torch.tensor(TMI_list),'OP':torch.tensor(OP_list),'args':args},fn)
     
     print('Time elapsed: {:.4f}'.format(time.time()-st))

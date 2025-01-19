@@ -389,6 +389,7 @@ class GTN2_torch:
         if verbose:
             print('entanglement entropy done in {:.4f}'.format(time.time()-st))
         return -torch.sum(val*torch.log(val))-torch.sum((1-val)*torch.log(1-val))
+
     def half_cut_entanglement_entropy(self,shift=(0,0),selfaverage=False):
         if selfaverage:
             return torch.stack([self.half_cut_entanglement_entropy(shift=(i,j)) for i in range(self.Lx) for j in range(self.Ly)]).mean()
@@ -404,6 +405,18 @@ class GTN2_torch:
             SAB=self.von_Neumann_entropy_m(torch.cat([subA,subB]),fermion_idx=False)
             SAC=self.von_Neumann_entropy_m(torch.cat([subA,subC]),fermion_idx=False)
             return (SAB+SAC)/2
+
+    def half_cut_entanglement_y_entropy(self,shift=(0,0),selfaverage=False):
+        """half cut entanglement entropy with Lx x Ly/2"""
+        if selfaverage:
+            return torch.stack([self.half_cut_entanglement_entropy(shift=(0,j)) for j in range(self.Ly)]).mean()
+        else:
+            Lx_ = (np.arange(self.Lx))
+            Ly_first_half = (np.arange(self.Ly//2) +shift[1])%self.Ly
+            Ly_second_half = (np.arange(self.Ly//2,self.Ly) + shift[1])%self.Ly
+            subA=self.c2g(ilist=Lx_,jlist=Ly_first_half)
+            SA=self.von_Neumann_entropy_m(subA,fermion_idx=False)
+            return SA
 
 
 

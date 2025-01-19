@@ -43,9 +43,6 @@ def run(inputs):
     for mu in mu_list:
         gtn2_torch.a_i[mu],gtn2_torch.b_i[mu] = amplitude(gtn2_torch.nshell,tau=[0,1],geometry='square',lower=True,mu=mu,C=1)
         gtn2_torch.A_i[mu],gtn2_torch.B_i[mu] = amplitude(gtn2_torch.nshell,tau=[1,0],geometry='square',lower=False,mu=mu,C=1)
-    
-
-    A_idx_0,B_idx_0,C_idx_0 = gtn2_torch.generate_tripartite_circle()
 
     for i in tqdm(range(gtn2_torch.Lx)):
         measure_feedback_layer(gtn2_torch)
@@ -62,11 +59,11 @@ def dummy(inputs):
 def correlation_length(C_m,replica,layer,Lx,Ly,):
     D=(replica,layer,Lx,Ly,2,2)
     C_ij=C_m.reshape(D+D)[0,0,:,:,:,:,0,0,:,:,:,:].mean(dim=(2,3,6,7))
-    Cr_i=torch.stack([C_ij[i,j,(i+torch.arange(Lx//2)+1)%Lx,j].cpu() for i in range(Lx) for j in range(Ly)]).mean(dim=0)
-    Cr_j=torch.stack([C_ij[i,j,i,(j+torch.arange(Ly//2)+1)%Ly].cpu() for i in range(Lx) for j in range(Ly)]).mean(dim=0)
+    Cr_i=torch.stack([C_ij[i,j,(i+torch.arange(Lx//2)+1)%Lx,j] for i in range(Lx) for j in range(Ly)]).mean(dim=0)
+    Cr_j=torch.stack([C_ij[i,j,i,(j+torch.arange(Ly//2)+1)%Ly] for i in range(Lx) for j in range(Ly)]).mean(dim=0)
     c_ij=C_m.reshape(D+D)[0,1,:,:,:,:,0,1,:,:,:,:].mean(dim=(2,3,6,7))
-    cr_i=torch.stack([c_ij[i,j,(i+torch.arange(Lx//2)+1)%Lx,j].cpu() for i in range(Lx) for j in range(Ly)]).mean(dim=0)
-    cr_j=torch.stack([c_ij[i,j,i,(j+torch.arange(Ly//2)+1)%Ly].cpu() for i in range(Lx) for j in range(Ly)]).mean(dim=0)
+    cr_i=torch.stack([c_ij[i,j,(i+torch.arange(Lx//2)+1)%Lx,j] for i in range(Lx) for j in range(Ly)]).mean(dim=0)
+    cr_j=torch.stack([c_ij[i,j,i,(j+torch.arange(Ly//2)+1)%Ly] for i in range(Lx) for j in range(Ly)]).mean(dim=0)
     return Cr_i,Cr_j,cr_i,cr_j
 
 if __name__ == '__main__':

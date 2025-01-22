@@ -116,7 +116,7 @@ def convert_to_list(a_i):
     j_list=np.array(j_list)
     return i_list,j_list,a_list
 
-def plot_eigvals(C_m_,ax=None):
+def plot_eigvals(C_m_,ax=None, ):
     import torch
     if ax is None:
         fig,ax=plt.subplots(figsize=(4,3))
@@ -137,3 +137,18 @@ def plot_eigvals(C_m_,ax=None):
     ax.set_xlabel('index')
     ax.set_ylabel('Eigenvalues')
     ax.set_title(f'Spectral Gap: Top {torch.abs(eigval_t).min():.3f} Bottom {torch.abs(eigval_b).min():.3f}')
+
+def plot_eigvals_(eigvals,eigvals_t,eigvals_b,ax=None, ):
+    import torch
+    if ax is None:
+        fig,ax=plt.subplots(figsize=(4,3))
+    color_list = np.array(['b']*eigvals_t.shape[0]+['r']*eigvals_b.shape[0])
+    eigvals_s=np.hstack([eigvals_t,eigvals_b])
+    order=eigvals_s.argsort()
+    color_list=color_list[order]
+    eigvals_s=eigvals_s[order]
+    ax.plot(eigvals,'.',color='gray')
+    ax.scatter(np.arange((eigvals_s).shape[0]),eigvals_s,color=color_list)
+    ax.set_xlabel('index')
+    ax.set_ylabel('Eigenvalues')
+    ax.set_title(f'Spectral Gap: Top:{np.abs(eigvals_t).min():.3f}; Bottom={np.abs(eigvals_b).min():.3f}')

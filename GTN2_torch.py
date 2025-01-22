@@ -522,8 +522,8 @@ def amplitude(nshell,nkx=500,nky=500,tau=[0,1],mu=1,geometry = 'square', lower=T
 def amplitude_fft(nkx=5000,nky=5000,tau=[0,1],mu=1, lower=True, C=1):
     """if gemoetry is square, then the shape is [i-nshell,i+nshell]x[j-nshell,j+nshell]"""
     
-    kx = np.linspace(-np.pi,np.pi,nkx)
-    ky = np.linspace(-np.pi,np.pi,nky)
+    kx = np.linspace(-np.pi,np.pi,nkx,endpoint=False)
+    ky = np.linspace(-np.pi,np.pi,nky,endpoint=False)
     KX,KY = np.meshgrid(kx,ky, indexing='ij')
     offdiag=(np.sin(KX)-1j*np.sin(KY))**C
     dx = offdiag.real

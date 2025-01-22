@@ -391,6 +391,7 @@ class GTN2_torch:
         return -torch.sum(val*torch.log(val))-torch.sum((1-val)*torch.log(1-val))
 
     def half_cut_entanglement_entropy(self,shift=(0,0),selfaverage=False):
+        """ this function is unefficient because it involves many redundant calculations"""
         if selfaverage:
             return torch.stack([self.half_cut_entanglement_entropy(shift=(i,j)) for i in range(self.Lx) for j in range(self.Ly)]).mean()
         else:
@@ -413,11 +414,18 @@ class GTN2_torch:
         else:
             Lx_ = (np.arange(self.Lx))
             Ly_first_half = (np.arange(self.Ly//2) +shift[1])%self.Ly
-            Ly_second_half = (np.arange(self.Ly//2,self.Ly) + shift[1])%self.Ly
             subA=self.c2g(ilist=Lx_,jlist=Ly_first_half)
             SA=self.von_Neumann_entropy_m(subA,fermion_idx=False)
             return SA
-
+    def half_cut_entanglement_x_entropy(self,shift=(0,0),selfaverage=False):
+        if selfaverage:
+            return torch.stack([self.half_cut_entanglement_entropy(shift=(i,0)) for i in range(self.Lx)]).mean()
+        else:
+            Ly_ = (np.arange(self.Ly))
+            Lx_first_half = (np.arange(self.Lx//2) + shift[0])%self.Lx
+            subA=self.c2g(ilist=Lx_first_half,jlist=Ly_)
+            SA=self.von_Neumann_entropy_m(subA,fermion_idx=False)
+            return SA
 
 
     def tripartite_mutual_information(self,shift=(0,0),selfaverage=False):
@@ -522,14 +530,16 @@ def amplitude(nshell,nkx=500,nky=500,tau=[0,1],mu=1,geometry = 'square', lower=T
 def amplitude_fft(nkx=5000,nky=5000,tau=[0,1],mu=1, lower=True, C=1):
     """if gemoetry is square, then the shape is [i-nshell,i+nshell]x[j-nshell,j+nshell]"""
     
-    kx = np.linspace(-np.pi,np.pi,nkx,endpoint=False)
-    ky = np.linspace(-np.pi,np.pi,nky,endpoint=False)
+    # kx = np.linspace(-np.pi,np.pi,nkx,endpoint=False)
+    # ky = np.linspace(-np.pi,np.pi,nky,endpoint=False)
+    kx = np.linspace(0,2*np.pi,nkx,endpoint=False)
+    ky = np.linspace(0,2*np.pi,nky,endpoint=False)
     KX,KY = np.meshgrid(kx,ky, indexing='ij')
     offdiag=(np.sin(KX)-1j*np.sin(KY))**C
     dx = offdiag.real
     dy = -offdiag.imag
     dz = mu-np.cos(KX)-np.cos(KY)
-    E = np.sqrt(dx**2+dy**2+dz**2)
+    E = np.sqrt(dx**2+dy**2+dz**2+1e-18)
     cos_theta = dz/E
     sin_theta_exp_iphi = (dx+1j*dy)/E
     tau = np.array(tau)/np.linalg.norm(tau)
@@ -540,6 +550,59 @@ def amplitude_fft(nkx=5000,nky=5000,tau=[0,1],mu=1, lower=True, C=1):
         ak = (1+cos_theta)/2*tau[0] + 1/2*sin_theta_exp_iphi.conj()*tau[1]
         bk = 1/2*sin_theta_exp_iphi*tau[0] + (1-cos_theta)/2*tau[1]
 
-    a_i = np.fft.fft2(ak)/(nkx*nky)
-    b_i = np.fft.fft2(bk)/(nkx*nky)
+    a_i = np.fft.fft2(ak.conj())/(nkx*nky)
+    b_i = np.fft.fft2(bk.conj())/(nkx*nky)
+    # conjugation due to the opposite definition of exponent of FT pahse
+    return a_i,b_i
+
+def amplitude_fft_gpu(device,nkx=5000,nky=5000,tau=[0,1],mu=1, lower=True, C=1):
+    """if gemoetry is square, then the shape is [i-nshell,i+nshell]x[j-nshell,j+nshell]"""
+    
+    # kx = np.linspace(-np.pi,np.pi,nkx,endpoint=False)
+    # ky = np.linspace(-np.pi,np.pi,nky,endpoint=False)
+    kx = torch.linspace(0.,2*torch.pi,nkx+1,device=device)[:-1]
+    ky = torch.linspace(0.,2*torch.pi,nky+1,device=device)[:-1]
+    KX,KY = torch.meshgrid(kx,ky, indexing='ij')
+    offdiag=(torch.sin(KX)-1j*torch.sin(KY))**C
+    dx = offdiag.real
+    dy = -offdiag.imag
+    dz = mu-torch.cos(KX)-torch.cos(KY)
+    E = torch.sqrt(dx**2+dy**2+dz**2+1e-18)
+    cos_theta = dz/E
+    sin_theta_exp_iphi = (dx+1j*dy)/E
+    tau = np.array(tau)/np.linalg.norm(tau)
+    if lower:
+        ak = (1-cos_theta)/2*tau[0] - 1/2*sin_theta_exp_iphi.conj()*tau[1]
+        bk = - 1/2*sin_theta_exp_iphi*tau[0] + (1+cos_theta)/2*tau[1]
+    else:
+        ak = (1+cos_theta)/2*tau[0] + 1/2*sin_theta_exp_iphi.conj()*tau[1]
+        bk = 1/2*sin_theta_exp_iphi*tau[0] + (1-cos_theta)/2*tau[1]
+
+    a_i = torch.fft.fft2(ak.conj())/(nkx*nky)
+    b_i = torch.fft.fft2(bk.conj())/(nkx*nky)
+    # conjugation due to the opposite definition of exponent of FT pahse
+    return a_i,b_i
+
+def amplitude_fft_nshell(nshell,nkx=500,nky=500,tau=[0,1],mu=1,geometry = 'square', lower=True, C=1):
+    if geometry == 'square':
+        i_list = np.arange(-nshell,nshell+1)
+        j_list = np.arange(-nshell,nshell+1)
+        ij_list = [(i,j) for i in i_list for j in j_list]
+    elif geometry == 'diamond':
+        ij_list=[(i,j) for i in range(-nshell,nshell+1) for j in range(-nshell+abs(i),nshell+1 -abs(i))]
+    a_i,b_i = amplitude_fft(nkx,nky,tau,mu, lower, C)
+    a_i = {(i,j):a_i[(-i)%nkx,(j)%nky] for i,j in ij_list}
+    b_i = {(i,j):b_i[(-i)%nkx,(j)%nky] for i,j in ij_list}
+    return a_i,b_i
+
+def amplitude_fft_nshell_gpu(nshell,device,nkx=500,nky=500,tau=[0,1],mu=1,geometry = 'square', lower=True, C=1):
+    if geometry == 'square':
+        i_list = np.arange(-nshell,nshell+1)
+        j_list = np.arange(-nshell,nshell+1)
+        ij_list = [(i,j) for i in i_list for j in j_list]
+    elif geometry == 'diamond':
+        ij_list=[(i,j) for i in range(-nshell,nshell+1) for j in range(-nshell+abs(i),nshell+1 -abs(i))]
+    a_i,b_i = amplitude_fft_gpu(device,nkx,nky,tau,mu, lower, C)
+    a_i = {(i,j):a_i[(-i)%nkx,(j)%nky].item() for i,j in ij_list}
+    b_i = {(i,j):b_i[(-i)%nkx,(j)%nky].item() for i,j in ij_list}
     return a_i,b_i

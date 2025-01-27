@@ -410,7 +410,7 @@ class GTN2_torch:
     def half_cut_entanglement_y_entropy(self,shift=(0,0),selfaverage=False):
         """half cut entanglement entropy with Lx x Ly/2"""
         if selfaverage:
-            return torch.stack([self.half_cut_entanglement_entropy(shift=(0,j)) for j in range(self.Ly)]).mean()
+            return torch.stack([self.half_cut_entanglement_y_entropy(shift=(0,j)) for j in range(self.Ly)]).mean()
         else:
             Lx_ = (np.arange(self.Lx))
             Ly_first_half = (np.arange(self.Ly//2) +shift[1])%self.Ly
@@ -419,7 +419,7 @@ class GTN2_torch:
             return SA
     def half_cut_entanglement_x_entropy(self,shift=(0,0),selfaverage=False):
         if selfaverage:
-            return torch.stack([self.half_cut_entanglement_entropy(shift=(i,0)) for i in range(self.Lx)]).mean()
+            return torch.stack([self.half_cut_entanglement_x_entropy(shift=(i,0)) for i in range(self.Lx)]).mean()
         else:
             Ly_ = (np.arange(self.Ly))
             Lx_first_half = (np.arange(self.Lx//2) + shift[0])%self.Lx

@@ -49,14 +49,16 @@ def run(inputs):
     st=time.time()
     EE_i = gtn2_torch.half_cut_entanglement_x_entropy(selfaverage=True)
     EE_j = gtn2_torch.half_cut_entanglement_y_entropy(selfaverage=True)
-    print('EE calculated in {:.4f}'.format(time.time()-st))
-    nu=gtn2_torch.chern_number_quick(selfaverage=True)
-    print('Chern number calculated in {:.4f}'.format(time.time()-st))
-    TMI=gtn2_torch.tripartite_mutual_information(selfaverage=True)
-    print('TMI calculated in {:.4f}'.format(time.time()-st))
-    C_m=gtn2_torch.C_m_selfaverage(n=1)
-    C_m2=gtn2_torch.C_m_selfaverage(n=2)
-    return EE_i,EE_j,nu,TMI,C_m,C_m2
+    # print('EE calculated in {:.4f}'.format(time.time()-st))
+    # nu=gtn2_torch.chern_number_quick(selfaverage=True)
+    # print('Chern number calculated in {:.4f}'.format(time.time()-st))
+    # TMI=gtn2_torch.tripartite_mutual_information(selfaverage=True)
+    # print('TMI calculated in {:.4f}'.format(time.time()-st))
+    # C_m=gtn2_torch.C_m_selfaverage(n=1)
+    # C_m2=gtn2_torch.C_m_selfaverage(n=2)
+    # return EE_i,EE_j,nu,TMI,C_m,C_m2
+
+    return EE_i,EE_j
 
 
 def dummy(inputs):
@@ -68,8 +70,6 @@ def dummy(inputs):
     gtn2_torch.A_i={}
     gtn2_torch.B_i={}
     for mu in mu_list:
-        # gtn2_torch.a_i[mu],gtn2_torch.b_i[mu] = amplitude(gtn2_torch.nshell,tau=[0,1],geometry='square',lower=True,mu=mu,C=1)
-        # gtn2_torch.A_i[mu],gtn2_torch.B_i[mu] = amplitude(gtn2_torch.nshell,tau=[1,0],geometry='square',lower=False,mu=mu,C=1)
         gtn2_torch.a_i[mu],gtn2_torch.b_i[mu] = amplitude_fft_nshell_gpu(gtn2_torch.nshell,gtn2_torch.device,tau=[0,1.],geometry='square',lower=True,mu=mu,nkx=5000,nky=5000)
         gtn2_torch.A_i[mu],gtn2_torch.B_i[mu] = amplitude_fft_nshell_gpu(gtn2_torch.nshell,gtn2_torch.device,tau=[1.,0],geometry='square',lower=False,mu=mu,nkx=5000,nky=5000)
     return gtn2_torch
@@ -100,32 +100,35 @@ if __name__ == '__main__':
     inputs=[(args.Lx, args.Ly,args.nshell, args.mu,args.sigma, seed+args.seed0) for seed in range(args.es)]
     EE_i_list=[]
     EE_j_list=[]
-    TMI_list=[]
-    nu_list=[]
+    # TMI_list=[]
+    # nu_list=[]
     gtn2_dummy=dummy(inputs[0])
     gtn2_dummy.C_m.zero_()
     C_m_sq=gtn2_dummy.C_m.clone()
     for inp in inputs:
-        EE_i,EE_j,nu,TMI,C_m,C_m2 = run(inp)
+        # EE_i,EE_j,nu,TMI,C_m,C_m2 = run(inp)
+        EE_i,EE_j = run(inp)
         EE_i_list.append(EE_i)
         EE_j_list.append(EE_j)
-        nu_list.append(nu)
-        TMI_list.append(TMI)
-        gtn2_dummy.C_m+= C_m
-        C_m_sq+=C_m2
+        # nu_list.append(nu)
+        # TMI_list.append(TMI)
+        # gtn2_dummy.C_m+= C_m
+        # C_m_sq+=C_m2
 
-    gtn2_dummy.C_m/=args.es
-    eigvals=torch.linalg.eigvalsh(gtn2_dummy.C_m/1j)
-    eigvals_t=torch.linalg.eigvalsh(gtn2_dummy.C_m[:2*gtn2_dummy.L,:2*gtn2_dummy.L]/1j)
-    eigvals_b=torch.linalg.eigvalsh(gtn2_dummy.C_m[2*gtn2_dummy.L:,2*gtn2_dummy.L:]/1j)
-    gtn2_dummy.C_m = purify(gtn2_dummy.C_m)
-    nu_ave=gtn2_dummy.chern_number_quick(selfaverage=True)
+    # gtn2_dummy.C_m/=args.es
+    # eigvals=torch.linalg.eigvalsh(gtn2_dummy.C_m/1j)
+    # eigvals_t=torch.linalg.eigvalsh(gtn2_dummy.C_m[:2*gtn2_dummy.L,:2*gtn2_dummy.L]/1j)
+    # eigvals_b=torch.linalg.eigvalsh(gtn2_dummy.C_m[2*gtn2_dummy.L:,2*gtn2_dummy.L:]/1j)
+    # gtn2_dummy.C_m = purify(gtn2_dummy.C_m)
+    # nu_ave=gtn2_dummy.chern_number_quick(selfaverage=True)
 
-    C_m_sq/=args.es
-    Cr_i,Cr_j, cr_i,cr_j =correlation_length(C_m_sq,replica=1,layer=2,Lx=args.Lx,Ly=args.Ly)
+    # C_m_sq/=args.es
+    # Cr_i,Cr_j, cr_i,cr_j =correlation_length(C_m_sq,replica=1,layer=2,Lx=args.Lx,Ly=args.Ly)
     
-    fn=f'class_A_2D_Lx{args.Lx}_Ly{args.Ly}_nshell{args.nshell}_mu{args.mu:.2f}_sigma{args.sigma:.3f}_es{args.es}_seed{args.seed0}_EE.pt'
-    torch.save({'EE_i':torch.tensor(EE_i_list),'EE_j':torch.tensor(EE_j_list),'TMI':torch.tensor(TMI_list),'Chern':torch.tensor(nu_list),'Chern_ave':nu_ave,'Cr_i':Cr_i,'Cr_j':Cr_j, 'cr_i':cr_i, 'cr_j':cr_j,'eigvals':eigvals,'eigvals_t':eigvals_t,'eigvals_b':eigvals_b,'args':args},fn)
+    # fn=f'class_A_2D_Lx{args.Lx}_Ly{args.Ly}_nshell{args.nshell}_mu{args.mu:.2f}_sigma{args.sigma:.3f}_es{args.es}_seed{args.seed0}_EE.pt'
+    # torch.save({'EE_i':torch.tensor(EE_i_list),'EE_j':torch.tensor(EE_j_list),'TMI':torch.tensor(TMI_list),'Chern':torch.tensor(nu_list),'Chern_ave':nu_ave,'Cr_i':Cr_i,'Cr_j':Cr_j, 'cr_i':cr_i, 'cr_j':cr_j,'eigvals':eigvals,'eigvals_t':eigvals_t,'eigvals_b':eigvals_b,'args':args},fn)
+    fn=f'class_A_2D_Lx{args.Lx}_Ly{args.Ly}_nshell{args.nshell}_mu{args.mu:.2f}_sigma{args.sigma:.3f}_es{args.es}_seed{args.seed0}_EE_fix.pt'
+    torch.save({'EE_i':torch.tensor(EE_i_list),'EE_j':torch.tensor(EE_j_list),'args':args},fn)
     
     print('Time elapsed: {:.4f}'.format(time.time()-st))
 

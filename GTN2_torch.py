@@ -417,6 +417,18 @@ class GTN2_torch:
             subA=self.c2g(ilist=Lx_,jlist=Ly_first_half)
             SA=self.von_Neumann_entropy_m(subA,fermion_idx=False)
             return SA
+    
+    def entanglement_y_entropy(self,ly,shift=(0,0),selfaverage=False):
+        """half cut entanglement entropy with Lx x Ly/2"""
+        if selfaverage:
+            return torch.stack([self.entanglement_y_entropy(ly=ly,shift=(0,j)) for j in range(self.Ly)]).mean()
+        else:
+            Lx_ = (np.arange(self.Lx))
+            Ly_first_half = (np.arange(ly) +shift[1])%self.Ly
+            subA=self.c2g(ilist=Lx_,jlist=Ly_first_half)
+            SA=self.von_Neumann_entropy_m(subA,fermion_idx=False)
+            return SA
+            
     def half_cut_entanglement_x_entropy(self,shift=(0,0),selfaverage=False):
         if selfaverage:
             return torch.stack([self.half_cut_entanglement_x_entropy(shift=(i,0)) for i in range(self.Lx)]).mean()
@@ -457,8 +469,6 @@ class GTN2_torch:
             return SA+SB+SC-SAB-SBC-SAC+SABC
     
     def c2g(self,ilist,jlist):
-        # ilist=np.arange(0,self.Lx//2)
-        # jlist=np.arange(0,self.Ly)
         return torch.hstack((
             torch.from_numpy(self.linearize_idx_span(ilist = ilist,jlist=jlist,layer=0)).cuda(),
             torch.from_numpy(self.linearize_idx_span(ilist = ilist,jlist=jlist,layer=1)).cuda())

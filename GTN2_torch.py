@@ -99,14 +99,15 @@ class GTN2_torch:
             Gamma=Omega_diag
         return (Gamma-Gamma.T)/2
     
-    def measure_feedback(self,ij,mu=None,feedback=True,region=None):
+    def measure_feedback(self,ij,mu=None,tau=None,feedback=True,region=None):
         """ix is the 2 fermionic site index
         this can be used to incorporate feedback"""
         i,j=ij
         if mu is None:
             mu = list(self.a_i.keys())[0]
-        legs_t_lower,wf_lower=self.generate_ij_wf(i,j,self.a_i[mu],self.b_i[mu],self.bcx,self.bcy,region=region)
-        legs_t_upper,wf_upper=self.generate_ij_wf(i,j,self.A_i[mu],self.B_i[mu],self.bcx,self.bcy,region=region)
+            
+        legs_t_lower,wf_lower=self.generate_ij_wf(i,j,self.a_i[mu,tau],self.b_i[mu,tau],self.bcx,self.bcy,region=region)
+        legs_t_upper,wf_upper=self.generate_ij_wf(i,j,self.A_i[mu,tau],self.B_i[mu,tau],self.bcx,self.bcy,region=region)
 
         legs_bA = [self.linearize_idx(i=i,j=j,orbit_idx=0,majorana=majorana)+2*self.L for majorana in range(2)]
         legs_bB = [self.linearize_idx(i=i,j=j,orbit_idx=1,majorana=majorana)+2*self.L for majorana in range(2)]

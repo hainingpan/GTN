@@ -6,7 +6,7 @@ import time
 from utils_torch import *
 
 
-def measure_feedback_layer(gtn2,):
+def measure_feedback_layer(gtn2,mu):
     margin_x=0 
     ilist = range(margin_x,gtn2.Lx-margin_x)
     margin_y=0
@@ -42,7 +42,7 @@ def run(inputs):
 
 
     for i in tqdm(range(gtn2_torch.Lx)):
-        measure_feedback_layer(gtn2_torch)
+        measure_feedback_layer(gtn2_torch,mu=mu)
         randomize(gtn2_torch,measure=True)
         if sigma>0:
             randomize_inter(gtn2_torch,scale=sigma)
@@ -57,7 +57,12 @@ def run(inputs):
     print('TMI calculated in {:.4f}'.format(time.time()-st))
     C_m=gtn2_torch.C_m_selfaverage(n=1)
     C_m2=gtn2_torch.C_m_selfaverage(n=2)
-    return EE_i,EE_j,nu,TMI,C_m,C_m2
+    print('Average C_m calculated in {:.4f}'.format(time.time()-st))
+    SA = torch.tensor([gtn2_torch.entanglement_y_entropy(ly=ly,selfaverage=True) for ly in range(1,gtn2_torch.Ly//2+1)])
+    print('SA calculated in {:.4f}'.format(time.time()-st))
+    OP =gtn2_torch.order_parameter()
+    print('OP calculated in {:.4f}'.format(time.time()-st))
+    return EE_i,EE_j,nu,TMI,C_m,C_m2, SA, OP
 
 
 
@@ -65,6 +70,7 @@ def dummy(inputs):
     Lx,Ly, nshell,mu,sigma,seed=inputs
     gtn2_torch=GTN2_torch(Lx=Lx,Ly=Ly,history=False,random_init=False,random_U1=True,bcx=1,bcy=1,seed=seed,orbit=2,nshell=nshell,layer=2,replica=1,complex128=True)
     mu_list=[mu]
+    tau_list=[(1,0),(0,1)]
     gtn2_torch.a_i={}
     gtn2_torch.b_i={}
     gtn2_torch.A_i={}
@@ -103,11 +109,13 @@ if __name__ == '__main__':
     EE_j_list=[]
     TMI_list=[]
     nu_list=[]
+    SA_list=[]
+    OP_list=[]
     gtn2_dummy=dummy(inputs[0])
     gtn2_dummy.C_m.zero_()
     C_m_sq=gtn2_dummy.C_m.clone()
     for inp in inputs:
-        EE_i,EE_j,nu,TMI,C_m,C_m2 = run(inp)
+        EE_i,EE_j,nu,TMI,C_m,C_m2, SA, OP = run(inp)
         # EE_i,EE_j = run(inp)
         EE_i_list.append(EE_i)
         EE_j_list.append(EE_j)
@@ -115,6 +123,8 @@ if __name__ == '__main__':
         TMI_list.append(TMI)
         gtn2_dummy.C_m+= C_m
         C_m_sq+=C_m2
+        SA_list.append(SA)
+        OP_list.append(OP)
 
     gtn2_dummy.C_m/=args.es
     eigvals=torch.linalg.eigvalsh(gtn2_dummy.C_m/1j)
@@ -127,7 +137,24 @@ if __name__ == '__main__':
     Cr_i,Cr_j, cr_i,cr_j =correlation_length(C_m_sq,replica=1,layer=2,Lx=args.Lx,Ly=args.Ly)
     
     fn=f'class_A_2D_Lx{args.Lx}_Ly{args.Ly}_nshell{args.nshell}_mu{args.mu:.2f}_sigma{args.sigma:.3f}_es{args.es}_seed{args.seed0}_all.pt'
-    torch.save({'EE_i':torch.tensor(EE_i_list),'EE_j':torch.tensor(EE_j_list),'TMI':torch.tensor(TMI_list),'Chern':torch.tensor(nu_list),'Chern_ave':nu_ave,'Cr_i':Cr_i,'Cr_j':Cr_j, 'cr_i':cr_i, 'cr_j':cr_j,'eigvals':eigvals,'eigvals_t':eigvals_t,'eigvals_b':eigvals_b,'args':args},fn)
+    torch.save({
+        'EE_i':torch.tensor(EE_i_list),
+        'EE_j':torch.tensor(EE_j_list),
+        'TMI':torch.tensor(TMI_list),
+        'Chern':torch.tensor(nu_list),
+        'Chern_ave':nu_ave,
+        'Cr_i':Cr_i,
+        'Cr_j':Cr_j,
+         'cr_i':cr_i,
+         'cr_j':cr_j,
+        'eigvals':eigvals,
+        'eigvals_t':eigvals_t,
+        'eigvals_b':eigvals_b,
+        'SA':torch.stack(SA_list),
+        'OP':torch.tensor(OP_list),
+        'args':args
+        },fn)
+
     # fn=f'class_A_2D_Lx{args.Lx}_Ly{args.Ly}_nshell{args.nshell}_mu{args.mu:.2f}_sigma{args.sigma:.3f}_es{args.es}_seed{args.seed0}_EE_fix.pt'
     # torch.save({'EE_i':torch.tensor(EE_i_list),'EE_j':torch.tensor(EE_j_list),'args':args},fn)
     

@@ -60,7 +60,7 @@ def run(inputs):
     print('Average C_m calculated in {:.4f}'.format(time.time()-st))
     SA = torch.tensor([gtn2_torch.entanglement_y_entropy(ly=ly,selfaverage=True) for ly in range(1,gtn2_torch.Ly//2+1)])
     print('SA calculated in {:.4f}'.format(time.time()-st))
-    OP =gtn2_torch.order_parameter()
+    OP =gtn2_torch.order_parameter(mu=mu)
     print('OP calculated in {:.4f}'.format(time.time()-st))
     return EE_i,EE_j,nu,TMI,C_m,C_m2, SA, OP
 

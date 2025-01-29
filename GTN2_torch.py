@@ -131,22 +131,23 @@ class GTN2_torch:
             # self.fSWAP(legs_t_upper+legs_bA,state1 = wf_upper, state2=(1,))
             self.fSWAP(legs_t_upper+legs_bB,state1 = wf_upper, state2=(1,))
     
-    def order_parameter(self,mu=None,region=None):
+    def order_parameter(self,mu,region=None):
         """ the order parameter is defined as sum_{ij} (1-n_- + n_+)/L; such that it is effective the defect density per unit cell"""
-        if mu is None:
-            mu = list(self.a_i.keys())[0]
+        # if mu is None:
+        #     mu = list(self.a_i.keys())[0]
         n_lower, n_upper = 0,0
         for i in range(self.Lx):
             for j in range(self.Ly):
-                legs_t_lower,wf_lower=self.generate_ij_wf(i,j,self.a_i[mu],self.b_i[mu],self.bcx,self.bcy,region=region)
-                legs_t_upper,wf_upper=self.generate_ij_wf(i,j,self.A_i[mu],self.B_i[mu],self.bcx,self.bcy,region=region)
-                legs_t_lower=torch.tensor(legs_t_lower,device=self.device)
-                legs_t_upper=torch.tensor(legs_t_upper,device=self.device)
-                Gamma = self.C_m[legs_t_lower[:,None],legs_t_lower[None,:]]
-                n_lower += self.get_Born(Gamma,u=wf_lower)
-                Gamma = self.C_m[legs_t_upper[:,None],legs_t_upper[None,:]]
-                n_upper += self.get_Born(Gamma,u=wf_upper)
-        return 1-(n_lower-n_upper)/(self.Lx*self.Ly)
+                for tau in [(1,0),(0,1)]:
+                    legs_t_lower,wf_lower=self.generate_ij_wf(i,j,self.a_i[mu,tau],self.b_i[mu,tau],self.bcx,self.bcy,region=region)
+                    legs_t_upper,wf_upper=self.generate_ij_wf(i,j,self.A_i[mu,tau],self.B_i[mu,tau],self.bcx,self.bcy,region=region)
+                    legs_t_lower=torch.tensor(legs_t_lower,device=self.device)
+                    legs_t_upper=torch.tensor(legs_t_upper,device=self.device)
+                    Gamma = self.C_m[legs_t_lower[:,None],legs_t_lower[None,:]]
+                    n_lower += self.get_Born(Gamma,u=wf_lower)
+                    Gamma = self.C_m[legs_t_upper[:,None],legs_t_upper[None,:]]
+                    n_upper += self.get_Born(Gamma,u=wf_upper)
+        return (2-(n_lower-n_upper)/(self.Lx*self.Ly))/2
 
 
                 

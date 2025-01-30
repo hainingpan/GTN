@@ -131,14 +131,14 @@ class GTN2_torch:
             # self.fSWAP(legs_t_upper+legs_bA,state1 = wf_upper, state2=(1,))
             self.fSWAP(legs_t_upper+legs_bB,state1 = wf_upper, state2=(1,))
     
-    def order_parameter(self,mu,region=None):
+    def order_parameter(self,mu,tau_list=[(1,0),(0,1)],region=None):
         """ the order parameter is defined as sum_{ij} (1-n_- + n_+)/L; such that it is effective the defect density per unit cell"""
         # if mu is None:
         #     mu = list(self.a_i.keys())[0]
         n_lower, n_upper = 0,0
         for i in range(self.Lx):
             for j in range(self.Ly):
-                for tau in [(1,0),(0,1)]:
+                for tau in tau_list:
                     legs_t_lower,wf_lower=self.generate_ij_wf(i,j,self.a_i[mu,tau],self.b_i[mu,tau],self.bcx,self.bcy,region=region)
                     legs_t_upper,wf_upper=self.generate_ij_wf(i,j,self.A_i[mu,tau],self.B_i[mu,tau],self.bcx,self.bcy,region=region)
                     legs_t_lower=torch.tensor(legs_t_lower,device=self.device)

@@ -13,8 +13,10 @@ def measure_feedback_layer(gtn2,mu):
     jlist = range(margin_y,gtn2.Ly-margin_y)
     ij_list = [(i,j) for i in (ilist) for j in (jlist)]
     for i,j in (ij_list):
-        gtn2.measure_feedback(ij = [i,j],tau=(1,0),mu=mu)
-        gtn2.measure_feedback(ij = [i,j],tau=(0,1),mu=mu)
+        # gtn2.measure_feedback(ij = [i,j],tau=(1,0),mu=mu)
+        # gtn2.measure_feedback(ij = [i,j],tau=(0,1),mu=mu)
+        gtn2.measure_feedback(ij = [i,j],tau=(1,1),mu=mu)
+        gtn2.measure_feedback(ij = [i,j],tau=(1,-1),mu=mu)
 
 def randomize(gtn2,measure=True):
     # for i in tqdm(range(2*gtn2.L+1,4*gtn2.L,2),desc='randomize'):
@@ -60,7 +62,7 @@ def run(inputs):
     print('Average C_m calculated in {:.4f}'.format(time.time()-st))
     SA = torch.tensor([gtn2_torch.entanglement_y_entropy(ly=ly,selfaverage=True) for ly in range(1,gtn2_torch.Ly//2+1)])
     print('SA calculated in {:.4f}'.format(time.time()-st))
-    OP =gtn2_torch.order_parameter(mu=mu)
+    OP =gtn2_torch.order_parameter(mu=mu,tau_list = [(1,1),(1,-1)])
     print('OP calculated in {:.4f}'.format(time.time()-st))
     return EE_i,EE_j,nu,TMI,C_m,C_m2, SA, OP
 
@@ -70,7 +72,8 @@ def dummy(inputs):
     Lx,Ly, nshell,mu,sigma,seed=inputs
     gtn2_torch=GTN2_torch(Lx=Lx,Ly=Ly,history=False,random_init=False,random_U1=True,bcx=1,bcy=1,seed=seed,orbit=2,nshell=nshell,layer=2,replica=1,complex128=True)
     mu_list=[mu]
-    tau_list=[(1,0),(0,1)]
+    # tau_list=[(1,0),(0,1)]
+    tau_list=[(1,1),(1,-1)]
     gtn2_torch.a_i={}
     gtn2_torch.b_i={}
     gtn2_torch.A_i={}

@@ -29,7 +29,7 @@ read -r Lx Ly mu nshell sigma seed<<< $(sed -n "ARRARIDXp" $PARAMS_FILE)
 # srun singularity exec --nv /scratch/hp636/pytorch.sif python run_classA_2D_EE.py --L $L --nshell $nshell --mu $mu --es 50 --sigma $sigma --seed0 0 
 
 # store the order parameter with dynamics T 
-# srun singularity exec --nv /scratch/hp636/pytorch.sif python run_classA_2D_OP_T.py --L $L --nshell $nshell --mu $mu --es 50 --sigma $sigma --seed0 $seed --tf 2
+# srun singularity exec --nv /scratch/hp636/pytorch.sif python run_classA_2D_OP_T.py --L $L --nshell $nshell --mu $mu --es 20 --sigma $sigma --seed0 $seed --tf 2
 
 # normal script for all(most common)
 # srun singularity exec --nv /scratch/hp636/pytorch.sif python run_classA_2D_all.py --Lx 11 --Ly $L --nshell $nshell --mu $mu --es 20 --sigma $sigma --seed0 0 

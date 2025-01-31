@@ -303,6 +303,20 @@ class GTN2_torch:
         else:
             return C_f
     
+    def get_C_m(self,C_f,normal=True):
+        if normal:
+            S = torch.kron(torch.eye(C_f.shape[0],device=self.device),self.S0)
+            C_f_=torch.eye(C_f.shape[0],dtype=self.dtype_complex,device=self.device)-C_f.T.conj()
+            C_ = torch.zeros((C_f.shape[0],2,C_f.shape[0],2),dtype=self.dtype_complex,device=self.device)
+            C_[:,0,:,0]=C_f
+            C_[:,1,:,1]=C_f_
+            C_=C_.reshape((2*C_f.shape[0],2*C_f.shape[0]))
+            P_ = S.conj().T @ C_ @ S *2
+            C_m = torch.eye(2*C_f.shape[0],device=self.device) - P_ *2 
+            return C_m.imag
+        else:
+            raise NotImplementedError("The 'normal=False' case is not yet implemented.")
+    
     def kraus(self,n):
         return torch.tensor([[0,n[0],n[1],n[2]],
                         [-n[0],0,-n[2],n[1]],
@@ -493,6 +507,39 @@ class GTN2_torch:
         kernel = torch.eye(Lxy,device=self.device).reshape(d_list)/(Lxy)
         return torch.fft.ifft2(torch.fft.fft2(C_m_reshape,dim=(2,7))*torch.fft.fft2(kernel,dim=(2,7)),dim=(2,7)).reshape(self.C_m.shape).real
 
+    def _hamiltonian(self,mu):
+        Delta=1.
+        t=1
+        sigmax=torch.tensor([[0, 1.], [1., 0]],dtype=self.dtype_float,device=self.device)
+        sigmay=torch.tensor([[0, -1j], [1j, 0]],dtype=self.dtype_complex,device=self.device)
+        sigmaz=torch.tensor([[1., 0], [0, -1.]],dtype=self.dtype_float,device=self.device)
+        hopx = torch.diag(torch.ones(self.Lx-1,dtype=self.dtype_float,device=self.device), -1)
+        hopx[0, -1] = self.bcx
+        hopy = torch.diag(torch.ones(self.Ly-1,dtype=self.dtype_float,device=self.device), -1)
+        hopy[0, -1] = self.bcy
+        hopxmat = torch.kron(torch.eye(self.Ly,dtype=self.dtype_float,device=self.device),hopx)
+        hopymat = torch.kron(hopy,torch.eye(self.Lx,dtype=self.dtype_float,device=self.device))
+        onsitemat = torch.eye(self.Lx*self.Ly,dtype=self.dtype_float,device=self.device)
+        return ((torch.kron(hopxmat-hopxmat.T, sigmax)+torch.kron(hopymat-hopymat.T, sigmay))* 1j*Delta-t*torch.kron(hopxmat+hopxmat.T+hopymat+hopymat.T, sigmaz))/2+mu*torch.kron(onsitemat, sigmaz)
+
+    def bandstructure(self,mu):
+        h = self._hamiltonian(mu)
+        val, vec = torch.linalg.eigh(h)
+        sortindex = torch.argsort(val)
+        val = val[sortindex]
+        vec = vec[:, sortindex]
+        return val, vec
+
+    def covariance_matrix(self, mu):
+        '''
+        G_{ij}=<f_i^\dagger f_j>
+        '''
+        val,vec=self.bandstructure(mu=1)
+        C_f = torch.einsum("ij,j,jk",vec ,(val<0).float(),vec.T.conj())
+        C_m = self.get_C_m(C_f)
+        return C_m
+
+    
 
 
 

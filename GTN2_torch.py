@@ -306,13 +306,15 @@ class GTN2_torch:
     def get_C_m(self,C_f,normal=True):
         if normal:
             S = torch.kron(torch.eye(C_f.shape[0],device=self.device),self.S0)
-            C_f_=torch.eye(C_f.shape[0],dtype=self.dtype_complex,device=self.device)-C_f.T.conj()
+            C_f_=torch.eye(C_f.shape[0],dtype=self.dtype_complex,device=self.device)-C_f.T
             C_ = torch.zeros((C_f.shape[0],2,C_f.shape[0],2),dtype=self.dtype_complex,device=self.device)
             C_[:,0,:,0]=C_f
             C_[:,1,:,1]=C_f_
             C_=C_.reshape((2*C_f.shape[0],2*C_f.shape[0]))
             P_ = S.conj().T @ C_ @ S *2
             C_m = torch.eye(2*C_f.shape[0],device=self.device) - P_ *2 
+            # return C_m
+            assert C_m.real.max()<1e-10, f'largest real part is {C_m.real.max()}'
             return C_m.imag
         else:
             raise NotImplementedError("The 'normal=False' case is not yet implemented.")
@@ -483,10 +485,13 @@ class GTN2_torch:
             return SA+SB+SC-SAB-SBC-SAC+SABC
     
     def c2g(self,ilist,jlist):
-        return torch.hstack((
-            torch.from_numpy(self.linearize_idx_span(ilist = ilist,jlist=jlist,layer=0)).cuda(),
-            torch.from_numpy(self.linearize_idx_span(ilist = ilist,jlist=jlist,layer=1)).cuda())
-        )
+        if self.layer == 1:
+            return torch.from_numpy(self.linearize_idx_span(ilist = ilist,jlist=jlist,layer=0)).cuda()
+        elif self.layer==2:
+            return torch.hstack((
+                torch.from_numpy(self.linearize_idx_span(ilist = ilist,jlist=jlist,layer=0)).cuda(),
+                torch.from_numpy(self.linearize_idx_span(ilist = ilist,jlist=jlist,layer=1)).cuda())
+            )
 
     def xlogx(self,A):
         val,vec=torch.linalg.eigh(A)
@@ -532,9 +537,9 @@ class GTN2_torch:
 
     def covariance_matrix(self, mu):
         '''
-        G_{ij}=<f_i^\dagger f_j>
+        G_{ij}=<f_i^dagger f_j>
         '''
-        val,vec=self.bandstructure(mu=1)
+        val,vec=self.bandstructure(mu=mu)
         C_f = torch.einsum("ij,j,jk",vec ,(val<0).float(),vec.T.conj())
         C_m = self.get_C_m(C_f)
         return C_m

@@ -36,7 +36,7 @@ read -r Lx Ly mu nshell sigma seed<<< $(sed -n "ARRARIDXp" $PARAMS_FILE)
 
 # normal script for all(most common), but with Lx,Ly assigned independently, tempararily use es=20 for "mu-tuned" and es=19 for "sigma-tuned"
 # srun singularity exec --nv /scratch/hp636/pytorch.sif python run_classA_2D_all.py --Lx $Lx --Ly $Ly --nshell $nshell --mu $mu --es 20 --sigma $sigma --seed0 0
-srun singularity exec --nv /scratch/hp636/pytorch.sif python run_classA_2D_all.py --Lx $Lx --Ly $Ly --nshell $nshell --mu $mu --es 15 --sigma $sigma --seed0 $seed
+srun singularity exec --nv /scratch/hp636/pytorch.sif python run_classA_2D_all.py --Lx $Lx --Ly $Ly --nshell $nshell --mu $mu --es 100 --sigma $sigma --seed0 $seed
 
 # compute the internal entropy SA
 # srun singularity exec --nv /scratch/hp636/pytorch.sif python run_classA_2D_EE_SA.py --Lx $Lx --Ly $Ly --nshell $nshell --mu $mu --es 20 --sigma $sigma --seed0 0 

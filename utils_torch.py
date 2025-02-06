@@ -106,15 +106,27 @@ def fidelity(A,B):
     # https://doi.org/10.1063/1.5093326
     assert A.shape[0]==B.shape[0], f'A {A.shape[0]} has different dim than B{B.shape[0]}'
     L=A.shape[0]//2
-    identity=np.eye(A.shape[0])
-    id_AB=(identity-A@B)
-    if np.linalg.det(id_AB)!=0:
-        G_tilde=(A+B)@np.linalg.inv(id_AB)
-        # G_tilde=np.linalg.solve((A+B).T,id_AB.T).T    # Right divide
+    # identity=np.eye(A.shape[0])
+    # id_AB=(identity-A@B)
+    AB=-A@B
+    AB.diagonal().add_(1.) # (I-A@B)
+    AB.div_(2.)  # ../2
+    prod1=torch.linalg.det(AB)
+    if prod1 < 1e-20:
+        return 0.
     else:
-        G_tilde=(A+B)@np.linalg.inv(id_AB+1e-10*identity).real
-        # G_tilde=np.linalg.solve((A+B).T,id_AB.T+1e-8j*np.eye(A.shape[0])).T.real    # Right divide
+        AB.mul_(2)
+        AB_tilde = (A+B)@torch.linalg.inv(AB) # G_tilde=(A+B)@(1-A@B)^{-1}
+        AB_tilde = AB_tilde@AB_tilde    # G_tilde^2
+        AB_tilde.diagonal().add_(1.) # 1+..^2
+        AB_tilde = sqrt(AB_tilde) # (..)^{1/2}
+        AB_tilde.diagonal().add_(1.) # det(1+..)
+        prod2=torch.linalg.det(AB_tilde)
+        return torch.sqrt(prod1*prod2).item().real
 
-    sqrt_G_tilde=scipy.linalg.funm(identity+G_tilde@G_tilde,np.sqrt)
-    # return 2**(-L/2)*np.linalg.det(identity-A@B)**(1/4)*np.linalg.det(identity+sqrt_G_tilde)**(1/4)
-    return 2**(-L)*np.linalg.det(identity-A@B)**(1/2)*np.linalg.det(identity+sqrt_G_tilde)**(1/2)
+
+def sqrt(A):
+    val,vec=torch.linalg.eigh(A)
+    val_sqrt = torch.sqrt(val+0j)
+    vec=vec+0j
+    return vec@torch.diag(val_sqrt)@vec.conj().T

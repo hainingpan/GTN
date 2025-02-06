@@ -483,7 +483,72 @@ class GTN2_torch:
             # SABC=self.von_Neumann_entropy_m(torch.cat([subA,subB,subC]),fermion_idx=False)
             SABC=self.von_Neumann_entropy_m(subD,fermion_idx=False)
             return SA+SB+SC-SAB-SBC-SAC+SABC
+
+    def tripartite_mutual_information_quasi_1d(self,shift=(0,0),selfaverage=False):
+        """
+        TMI uses four quadrants, covers both layer, [Assuming only one 1 replica]
+        compute the tripartite mutual information as S(A)+S(B)+S(C)-S(AB)-S(BC)-S(AC)+S(ABC)
+        """
+        assert self.replica==1, "Tripartite mutual information only works for one replica"
+        if selfaverage:
+            return torch.stack([self.tripartite_mutual_information_quasi_1d(shift=(i,0)) for i in range(self.Lx)]).mean()
+        else:
+            Ly_ = (np.arange(self.Ly))
+            Lx_first_ = (np.arange(self.Lx//4) + shift[0])%self.Lx
+            subA=self.c2g(ilist=Lx_first_,jlist=Ly_)
+            Lx_second_ = (np.arange(self.Lx//4)+self.Lx//4 + shift[0])%self.Lx
+            subB=self.c2g(ilist=Lx_second_,jlist=Ly_)
+            Lx_third_ = (np.arange(self.Lx//4)+self.Lx//2 + shift[0])%self.Lx
+            subC=self.c2g(ilist=Lx_third_,jlist=Ly_)
+            Lx_fourth_ = (np.arange(self.Lx//4)+self.Lx//4*3 + shift[0])%self.Lx
+            subD=self.c2g(ilist=Lx_fourth_,jlist=Ly_)
+
+            SA=self.von_Neumann_entropy_m(subA,fermion_idx=False)
+            SB=self.von_Neumann_entropy_m(subB,fermion_idx=False)
+            SC=self.von_Neumann_entropy_m(subC,fermion_idx=False)
+            SAB=self.von_Neumann_entropy_m(torch.cat([subA,subB]),fermion_idx=False)
+            SBC=self.von_Neumann_entropy_m(torch.cat([subB,subC]),fermion_idx=False)
+            SAC=self.von_Neumann_entropy_m(torch.cat([subA,subC]),fermion_idx=False)
+            SABC=self.von_Neumann_entropy_m(subD,fermion_idx=False)
+            return SA+SB+SC-SAB-SBC-SAC+SABC
+
+    def bipartite_mutual_information(self,shift=(0,0),selfaverage=False):
+        assert self.replica==1, "Bipartite mutual information only works for one replica"
+        if selfaverage:
+            return torch.stack([self.bipartite_mutual_information(shift=(i,j)) for i in range(self.Lx) for j in range(self.Ly)]).mean()
+        else:
+            # # A, C are diagonal
+            Lx_first_half = (np.arange(self.Lx//2) + shift[0])%self.Lx
+            Ly_first_half = (np.arange(self.Ly//2) +shift[1])%self.Ly
+            Lx_second_half = (np.arange(self.Lx//2,self.Lx) + shift[0])%self.Lx
+            Ly_second_half = (np.arange(self.Ly//2,self.Ly) + shift[1])%self.Ly
+            subA=self.c2g(ilist=Lx_first_half,jlist=Ly_first_half)
+            subC=self.c2g(ilist=Lx_second_half,jlist=Ly_first_half)
+
+
+            SA=self.von_Neumann_entropy_m(subA,fermion_idx=False)
+            SC=self.von_Neumann_entropy_m(subC,fermion_idx=False)
+            SAC=self.von_Neumann_entropy_m(torch.cat([subA,subC]),fermion_idx=False)
+            return SA+SC-SAC
     
+    def bipartite_mutual_information_quasi_1d(self,shift=(0,0),selfaverage=False):
+        assert self.replica==1, "Bipartite mutual information only works for one replica"
+        if selfaverage:
+            return torch.stack([self.bipartite_mutual_information_quasi_1d(shift=(i,0)) for i in range(self.Lx)]).mean()
+        else:
+            # treat it as a quasi-1D
+            Ly_ = (np.arange(self.Ly))
+            Lx_first_ = (np.arange(self.Lx//4) + shift[0])%self.Lx
+            subA=self.c2g(ilist=Lx_first_,jlist=Ly_)
+            Lx_third_ = (np.arange(self.Lx//4)+self.Lx//2 + shift[0])%self.Lx
+            subC=self.c2g(ilist=Lx_third_,jlist=Ly_)
+
+            SA=self.von_Neumann_entropy_m(subA,fermion_idx=False)
+            SC=self.von_Neumann_entropy_m(subC,fermion_idx=False)
+            SAC=self.von_Neumann_entropy_m(torch.cat([subA,subC]),fermion_idx=False)
+            return SA+SC-SAC
+    
+
     def c2g(self,ilist,jlist):
         if self.layer == 1:
             return torch.from_numpy(self.linearize_idx_span(ilist = ilist,jlist=jlist,layer=0)).cuda()

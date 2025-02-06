@@ -58,9 +58,10 @@ def max_error(Gamma):
 def purify(A):
     # purify A, see App. B2 in PhysRevB.106.134206
     val,vec=torch.linalg.eigh(A/1j)
-    mask=val<0
-    val[mask]=-1
-    val[~mask]=1
+    mask_neg=val<0
+    mask_pos=val>0
+    val[mask_neg]=-1
+    val[mask_pos]=1
     val=val+0j
     A= -(vec@torch.diag(val)@vec.conj().T).imag
     A=A-A.T

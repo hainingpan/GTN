@@ -53,4 +53,4 @@ srun singularity exec --nv /scratch/hp636/pytorch.sif python run_classA_2D_all.p
 
 # srun singularity exec --nv /scratch/hp636/pytorch.sif python run_classA_2D_EE_mp.py --L $L --nshell $nshell --mu $mu --es 50
 
-# python run_classA_2D_all.py --Lx 11 --Ly 11 --nshell 5 --mu 1.8 --es 2 --sigma 0 --seed0 0 
+# python run_classA_2D_all.py --Lx 8 --Ly 8 --nshell 2 --mu 1. --es 2 --sigma 0 --seed0 0 

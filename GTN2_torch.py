@@ -531,16 +531,16 @@ class GTN2_torch:
             SAC=self.von_Neumann_entropy_m(torch.cat([subA,subC]),fermion_idx=False)
             return SA+SC-SAC
     
-    def bipartite_mutual_information_quasi_1d(self,shift=(0,0),selfaverage=False):
+    def bipartite_mutual_information_quasi_1d(self,shift=(0,0),selfaverage=False,partition=4):
         assert self.replica==1, "Bipartite mutual information only works for one replica"
         if selfaverage:
             return torch.stack([self.bipartite_mutual_information_quasi_1d(shift=(i,0)) for i in range(self.Lx)]).mean()
         else:
             # treat it as a quasi-1D
             Ly_ = (np.arange(self.Ly))
-            Lx_first_ = (np.arange(self.Lx//4) + shift[0])%self.Lx
+            Lx_first_ = (np.arange(self.Lx//partition) + shift[0])%self.Lx
             subA=self.c2g(ilist=Lx_first_,jlist=Ly_)
-            Lx_third_ = (np.arange(self.Lx//4)+self.Lx//2 + shift[0])%self.Lx
+            Lx_third_ = (np.arange(self.Lx//partition)+self.Lx//2 + shift[0])%self.Lx
             subC=self.c2g(ilist=Lx_third_,jlist=Ly_)
 
             SA=self.von_Neumann_entropy_m(subA,fermion_idx=False)

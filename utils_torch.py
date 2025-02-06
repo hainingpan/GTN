@@ -112,7 +112,7 @@ def fidelity(A,B):
     AB.diagonal().add_(1.) # (I-A@B)
     AB.div_(2.)  # ../2
     prod1=torch.linalg.det(AB)
-    if prod1 < 1e-20:
+    if prod1 == 0:
         return 0.
     else:
         AB.mul_(2)

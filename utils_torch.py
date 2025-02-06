@@ -101,3 +101,20 @@ def correlation_length(C_m,replica,layer,Lx,Ly,):
     cr_i=torch.stack([c_ij[i,j,(i+torch.arange(Lx//2)+1)%Lx,j] for i in range(Lx) for j in range(Ly)]).mean(dim=0)
     cr_j=torch.stack([c_ij[i,j,i,(j+torch.arange(Ly//2)+1)%Ly] for i in range(Lx) for j in range(Ly)]).mean(dim=0)
     return Cr_i,Cr_j,cr_i,cr_j
+
+def fidelity(A,B):
+    # https://doi.org/10.1063/1.5093326
+    assert A.shape[0]==B.shape[0], f'A {A.shape[0]} has different dim than B{B.shape[0]}'
+    L=A.shape[0]//2
+    identity=np.eye(A.shape[0])
+    id_AB=(identity-A@B)
+    if np.linalg.det(id_AB)!=0:
+        G_tilde=(A+B)@np.linalg.inv(id_AB)
+        # G_tilde=np.linalg.solve((A+B).T,id_AB.T).T    # Right divide
+    else:
+        G_tilde=(A+B)@np.linalg.inv(id_AB+1e-10*identity).real
+        # G_tilde=np.linalg.solve((A+B).T,id_AB.T+1e-8j*np.eye(A.shape[0])).T.real    # Right divide
+
+    sqrt_G_tilde=scipy.linalg.funm(identity+G_tilde@G_tilde,np.sqrt)
+    # return 2**(-L/2)*np.linalg.det(identity-A@B)**(1/4)*np.linalg.det(identity+sqrt_G_tilde)**(1/4)
+    return 2**(-L)*np.linalg.det(identity-A@B)**(1/2)*np.linalg.det(identity+sqrt_G_tilde)**(1/2)

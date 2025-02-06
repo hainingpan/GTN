@@ -608,6 +608,8 @@ class GTN2_torch:
         C_f = torch.einsum("ij,j,jk",vec ,(val<0).float(),vec.T.conj())
         C_m = self.get_C_m(C_f)
         return C_m
+    
+
 
     
 

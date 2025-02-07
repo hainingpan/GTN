@@ -16,4 +16,4 @@ module purge
 
 module load singularity
 
-srun singularity exec --nv /scratch/hp636/pytorch.sif python run_classA_2D_DW.py --L 30 --nshell 4 --tf 100 --truncate
+srun singularity exec --nv /scratch/hp636/pytorch.sif python run_classA_2D_DW.py --L 10 --nshell 2 --tf 10 --seed0 0  --es 20 --truncate

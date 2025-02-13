@@ -35,6 +35,7 @@ def randomize_inter(gtn2,scale=1):
 
 def dummy(inputs):
     L, nshell,mu,sigma,tf,seed=inputs
+    # nshell=(L-1)//2
     gtn2_torch=GTN2_torch(Lx=L,Ly=L,history=False,random_init=False,random_U1=True,bcx=1,bcy=1,seed=seed,orbit=2,nshell=nshell,layer=2,replica=1,complex128=True)
     mu_list=[mu]
     tau_list=[(1,1),(1,-1)]
@@ -44,8 +45,8 @@ def dummy(inputs):
     gtn2_torch.B_i={}
     for mu in mu_list:
         for tau in tau_list:
-            gtn2_torch.a_i[mu,tau],gtn2_torch.b_i[mu,tau] = amplitude_fft_nshell_gpu(gtn2_torch.nshell,gtn2_torch.device,tau=tau,geometry='square',lower=True,mu=mu,nkx=5000,nky=5000)
-            gtn2_torch.A_i[mu,tau],gtn2_torch.B_i[mu,tau] = amplitude_fft_nshell_gpu(gtn2_torch.nshell,gtn2_torch.device,tau=tau,geometry='square',lower=False,mu=mu,nkx=5000,nky=5000)
+            gtn2_torch.a_i[mu,tau],gtn2_torch.b_i[mu,tau] = amplitude_fft_nshell_gpu(gtn2_torch.nshell,gtn2_torch.device,tau=tau,geometry='square',lower=True,mu=mu,nkx=L,nky=L)
+            gtn2_torch.A_i[mu,tau],gtn2_torch.B_i[mu,tau] = amplitude_fft_nshell_gpu(gtn2_torch.nshell,gtn2_torch.device,tau=tau,geometry='square',lower=False,mu=mu,nkx=L,nky=L)
     return gtn2_torch
 
 def run(inputs):
@@ -67,10 +68,13 @@ def run(inputs):
         randomize(gtn2_torch,measure=True)
         if sigma>0:
             randomize_inter(gtn2_torch,scale=sigma)
+        # gtn2_dummy.C_m = gtn2_torch.C_m
+        # OP_list.append(gtn2_dummy.order_parameter(mu=mu,tau_list = [(1,1),(1,-1)]))
         OP_list.append(gtn2_torch.order_parameter(mu=mu,tau_list = [(1,1),(1,-1)]))
-        EE_j_list.append(gtn2_torch.half_cut_entanglement_y_entropy(selfaverage=True))
+        # EE_j_list.append(gtn2_torch.half_cut_entanglement_y_entropy(selfaverage=True))
         
-    return OP_list, EE_j_list
+    # return OP_list, EE_j_list
+    return OP_list
 
 
 if __name__ == '__main__':
@@ -91,13 +95,19 @@ if __name__ == '__main__':
     EE_j_list=[]
     gtn2_dummy=dummy(inputs[0])
     for inp in inputs:
-        OP, EE_j = run(inp)
+        # OP, EE_j = run(inp)
+        OP= run(inp)
         OP_list.append(OP)
-        EE_j_list.append(EE_j)
+        # EE_j_list.append(EE_j)
 
     
-    fn=f'class_A_2D_L{args.L}_nshell{args.nshell}_mu{args.mu:.2f}_sigma{args.sigma:.3f}_es{args.es}_seed{args.seed0}_tf{args.tf}_T.pt'
-    torch.save({'OP':torch.tensor(OP_list),'EE_j':torch.tensor(EE_j_list),'args':args},fn)
+    # fn=f'class_A_2D_L{args.L}_nshell{args.nshell}_mu{args.mu:.2f}_sigma{args.sigma:.3f}_es{args.es}_seed{args.seed0}_tf{args.tf}_T.pt'
+    # fn=f'class_A_2D_L{args.L}_nshell{args.nshell}_mu{args.mu:.2f}_sigma{args.sigma:.3f}_es{args.es}_seed{args.seed0}_tf{args.tf}_full_T.pt'
+    fn=f'class_A_2D_L{args.L}_nshell{args.nshell}_mu{args.mu:.2f}_sigma{args.sigma:.3f}_es{args.es}_seed{args.seed0}_tf{args.tf}_discrete_T.pt'
+    torch.save({
+        'OP':torch.tensor(OP_list),
+        # 'EE_j':torch.tensor(EE_j_list),
+        'args':args},fn)
     
     print('Time elapsed: {:.4f}'.format(time.time()-st))
 

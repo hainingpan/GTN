@@ -128,6 +128,24 @@ class GTN2_torch:
         elif n_p == 1:
             # self.fSWAP(legs_t_upper+legs_bA,state1 = wf_upper, state2=(1,))
             self.fSWAP(legs_t_upper+legs_bB,state1 = wf_upper, state2=(1,))
+
+    def measure_feedback_force(self,ij,mu=None,tau=None,feedback=True,region=None):
+        """ix is the 2 fermionic site index
+        this can be used to incorporate feedback"""
+        i,j=ij
+        if mu is None:
+            mu = list(self.a_i.keys())[0]
+        legs_t_lower,wf_lower=self.generate_ij_wf(i,j,self.a_i[mu,tau],self.b_i[mu,tau],self.bcx,self.bcy,region=region)
+        legs_t_upper,wf_upper=self.generate_ij_wf(i,j,self.A_i[mu,tau],self.B_i[mu,tau],self.bcx,self.bcy,region=region)
+
+        legs_bA = [self.linearize_idx(i=i,j=j,orbit_idx=0,majorana=majorana)+2*self.L for majorana in range(2)]
+        legs_bB = [self.linearize_idx(i=i,j=j,orbit_idx=1,majorana=majorana)+2*self.L for majorana in range(2)]
+
+        # fill lower band
+        mode_m,n_m=self.measure_single_mode_set(legs_t_lower,mode=wf_lower,n=1)
+
+        # deplete upper band
+        mode_p,n_p=self.measure_single_mode_set(legs_t_upper,mode=wf_upper,n=0)
     
     def order_parameter(self,mu,tau_list=[(1,0),(0,1)],region=None):
         """ the order parameter is defined as sum_{ij} (1-n_- + n_+)/L; such that it is effective the defect density per unit cell"""
@@ -135,7 +153,9 @@ class GTN2_torch:
         #     mu = list(self.a_i.keys())[0]
         n_lower, n_upper = 0,0
         for i in range(self.Lx):
+        # for i in range(1):
             for j in range(self.Ly):
+            # for j in range(1):
                 for tau in tau_list:
                     legs_t_lower,wf_lower=self.generate_ij_wf(i,j,self.a_i[mu,tau],self.b_i[mu,tau],self.bcx,self.bcy,region=region)
                     legs_t_upper,wf_upper=self.generate_ij_wf(i,j,self.A_i[mu,tau],self.B_i[mu,tau],self.bcx,self.bcy,region=region)
@@ -156,6 +176,14 @@ class GTN2_torch:
         legs=torch.tensor(legs,device=self.device)
         Gamma = self.C_m[legs[:,None],legs[None,:]]
         n = self.get_Born_single_mode(Gamma=Gamma,mode=mode,rng=self.rng)
+        self.measure_single_mode_force(kind=(mode,n),ix=legs)
+        return (mode,n)
+
+    def measure_single_mode_set(self,legs,mode,n):
+        """measure the single mode with mode = (wf, n), wavefunction and occupation number 
+        """
+        legs=torch.tensor(legs,device=self.device)
+        Gamma = self.C_m[legs[:,None],legs[None,:]]
         self.measure_single_mode_force(kind=(mode,n),ix=legs)
         return (mode,n)
 
@@ -277,7 +305,6 @@ class GTN2_torch:
     def get_Born_single_mode(self,Gamma,mode,rng):
         """get the outcome of Born measurement for a single mode, 0 or 1, where mode is sum mode[i] c_i^dag"""
         prob = self.get_Born(Gamma,mode)
-        # print(prob)
         if torch.rand((1,),generator=self.rng,device=self.device,dtype=self.dtype_float)< prob:
             return 1
         else:
@@ -587,13 +614,15 @@ class GTN2_torch:
         hopx[0, -1] = self.bcx
         hopy = torch.diag(torch.ones(self.Ly-1,dtype=self.dtype_float,device=self.device), -1)
         hopy[0, -1] = self.bcy
-        hopxmat = torch.kron(torch.eye(self.Ly,dtype=self.dtype_float,device=self.device),hopx)
-        hopymat = torch.kron(hopy,torch.eye(self.Lx,dtype=self.dtype_float,device=self.device))
+        hopxmat = torch.kron(hopx,torch.eye(self.Ly,dtype=self.dtype_float,device=self.device))
+        hopymat = torch.kron(torch.eye(self.Lx,dtype=self.dtype_float,device=self.device),hopy)
+        # hopxmat = torch.kron(torch.eye(self.Ly,dtype=self.dtype_float,device=self.device),hopx)
+        # hopymat = torch.kron(hopy,torch.eye(self.Lx,dtype=self.dtype_float,device=self.device))
         onsitemat = torch.eye(self.Lx*self.Ly,dtype=self.dtype_float,device=self.device)
         return ((torch.kron(hopxmat-hopxmat.T, sigmax)+torch.kron(hopymat-hopymat.T, sigmay))* 1j*Delta-t*torch.kron(hopxmat+hopxmat.T+hopymat+hopymat.T, sigmaz))/2+mu*torch.kron(onsitemat, sigmaz)
 
     def bandstructure(self,mu):
-        h = self._hamiltonian(mu)
+        h = self._hamiltonian(mu).conj()
         val, vec = torch.linalg.eigh(h)
         sortindex = torch.argsort(val)
         val = val[sortindex]

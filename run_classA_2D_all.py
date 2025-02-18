@@ -53,8 +53,8 @@ def run(inputs):
     # EE_i = gtn2_torch.half_cut_entanglement_x_entropy(selfaverage=True)
     # EE_j = gtn2_torch.half_cut_entanglement_y_entropy(selfaverage=True)
     # print('EE calculated in {:.4f}'.format(time.time()-st))
-    # nu=gtn2_torch.chern_number_quick(selfaverage=True)
-    # print('Chern number calculated in {:.4f}'.format(time.time()-st))
+    nu=gtn2_torch.chern_number_quick(selfaverage=True)
+    print('Chern number calculated in {:.4f}'.format(time.time()-st))
     # TMI=gtn2_torch.tripartite_mutual_information(selfaverage=True)
     TMI=gtn2_torch.tripartite_mutual_information_quasi_1d(selfaverage=True)
     print('TMI calculated in {:.4f}'.format(time.time()-st))
@@ -68,7 +68,7 @@ def run(inputs):
     I2=gtn2_torch.bipartite_mutual_information_quasi_1d(selfaverage=True,partition=4)
     print('I2 calculated in {:.4f}'.format(time.time()-st))
     # return EE_i,EE_j,nu,TMI,C_m,C_m2, SA, OP
-    return TMI,I2,C_m
+    return nu,TMI,I2,C_m
     # return I2
 
 
@@ -85,8 +85,8 @@ def dummy(inputs):
     gtn2_torch.B_i={}
     for mu in mu_list:
         for tau in tau_list:
-            gtn2_torch.a_i[mu,tau],gtn2_torch.b_i[mu,tau] = amplitude_fft_nshell_gpu(gtn2_torch.nshell,gtn2_torch.device,tau=tau,geometry='square',lower=True,mu=mu,nkx=5000,nky=5000)
-            gtn2_torch.A_i[mu,tau],gtn2_torch.B_i[mu,tau] = amplitude_fft_nshell_gpu(gtn2_torch.nshell,gtn2_torch.device,tau=tau,geometry='square',lower=False,mu=mu,nkx=5000,nky=5000)
+            gtn2_torch.a_i[mu,tau],gtn2_torch.b_i[mu,tau] = amplitude_fft_nshell_gpu(gtn2_torch.nshell,gtn2_torch.device,tau=tau,geometry='square',lower=True,mu=mu,nkx=Lx,nky=Ly)
+            gtn2_torch.A_i[mu,tau],gtn2_torch.B_i[mu,tau] = amplitude_fft_nshell_gpu(gtn2_torch.nshell,gtn2_torch.device,tau=tau,geometry='square',lower=False,mu=mu,nkx=Lx,nky=Ly)
     return gtn2_torch
 
 def correlation_length(C_m,replica,layer,Lx,Ly,):
@@ -125,14 +125,14 @@ if __name__ == '__main__':
     C_m_sq=gtn2_dummy.C_m.clone()
     for inp in inputs:
         # EE_i,EE_j,nu,TMI,C_m,C_m2, SA, OP = run(inp)
-        TMI,I2,C_m = run(inp)
+        nu,TMI,I2,C_m = run(inp)
         # I2 = run(inp)
 
         # EE_i_list.append(EE_i)
         # EE_j_list.append(EE_j)
-        # nu_list.append(nu)
+        nu_list.append(nu)
         TMI_list.append(TMI)
-        # gtn2_dummy.C_m+= C_m
+        gtn2_dummy.C_m+= C_m
         # C_m_sq+=C_m2
         # SA_list.append(SA)
         # OP_list.append(OP)
@@ -143,20 +143,21 @@ if __name__ == '__main__':
     # eigvals_t=torch.linalg.eigvalsh(gtn2_dummy.C_m[:2*gtn2_dummy.L,:2*gtn2_dummy.L]/1j)
     # eigvals_b=torch.linalg.eigvalsh(gtn2_dummy.C_m[2*gtn2_dummy.L:,2*gtn2_dummy.L:]/1j)
     gtn2_dummy.C_m[:2*gtn2_dummy.L,:2*gtn2_dummy.L] = purify(gtn2_dummy.C_m[:2*gtn2_dummy.L,:2*gtn2_dummy.L])
-    gtn2_dummy.C_m = purify(gtn2_dummy.C_m)
+    # gtn2_dummy.C_m = purify(gtn2_dummy.C_m)
     nu_ave=gtn2_dummy.chern_number_quick(selfaverage=True)
 
     # C_m_sq/=args.es
     # Cr_i,Cr_j, cr_i,cr_j =correlation_length(C_m_sq,replica=1,layer=2,Lx=args.Lx,Ly=args.Ly)
     
     # fn=f'class_A_2D_Lx{args.Lx}_Ly{args.Ly}_nshell{args.nshell}_mu{args.mu:.2f}_sigma{args.sigma:.3f}_es{args.es}_seed{args.seed0}_all.pt'
-    fn=f'class_A_2D_Lx{args.Lx}_Ly{args.Ly}_nshell{args.nshell}_mu{args.mu:.2f}_sigma{args.sigma:.3f}_es{args.es}_seed{args.seed0}_all_I2.pt'
+    fn=f'class_A_2D_Lx{args.Lx}_Ly{args.Ly}_nshell{args.nshell}_mu{args.mu:.2f}_sigma{args.sigma:.3f}_es{args.es}_seed{args.seed0}_all_pub.pt'
+    # fn=f'class_A_2D_Lx{args.Lx}_Ly{args.Ly}_nshell{args.nshell}_mu{args.mu:.2f}_sigma{args.sigma:.3f}_es{args.es}_seed{args.seed0}_all_I2.pt'
     # fn=f'class_A_2D_Lx{args.Lx}_Ly{args.Ly}_nshell{args.nshell}_mu{args.mu:.2f}_sigma{args.sigma:.3f}_es{args.es}_seed{args.seed0}_all_I2_8.pt'
     torch.save({
         # 'EE_i':torch.tensor(EE_i_list),
         # 'EE_j':torch.tensor(EE_j_list),
         'TMI':torch.tensor(TMI_list),
-        # 'Chern':torch.tensor(nu_list),
+        'Chern':torch.tensor(nu_list),
         'Chern_ave':nu_ave,
         # 'Cr_i':Cr_i,
         # 'Cr_j':Cr_j,

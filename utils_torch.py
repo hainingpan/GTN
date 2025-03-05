@@ -93,6 +93,7 @@ def chern_number_quick(Gamma,A_idx,B_idx,C_idx,device,dtype,U1=True,):
         return nu
 
 def correlation_length(C_m,replica,layer,Lx,Ly,):
+    """C_m is expected to be the element-wise square of the covariance matrix"""
     D=(replica,layer,Lx,Ly,2,2)
     C_ij=C_m.reshape(D+D)[0,0,:,:,:,:,0,0,:,:,:,:].mean(dim=(2,3,6,7))
     Cr_i=torch.stack([C_ij[i,j,(i+torch.arange(Lx//2)+1)%Lx,j] for i in range(Lx) for j in range(Ly)]).mean(dim=0)
@@ -105,12 +106,15 @@ def correlation_length(C_m,replica,layer,Lx,Ly,):
 def correlation_i_length(C_m,replica,layer,Lx,Ly,i0):
     D=(replica,layer,Lx,Ly,2,2)
     C_ij=C_m.reshape(D+D)[0,0,:,:,:,:,0,0,:,:,:,:].mean(dim=(2,3,6,7))
-    # Cr_i=torch.stack([C_ij[i,j,(i+torch.arange(Lx//2)+1)%Lx,j] for i in range(Lx) for j in range(Ly)]).mean(dim=0)
     Cr_j=torch.stack([C_ij[i,j,i,(j+torch.arange(Ly//2)+1)%Ly] for i in [i0] for j in range(Ly)]).mean(dim=0)
-    # c_ij=C_m.reshape(D+D)[0,1,:,:,:,:,0,1,:,:,:,:].mean(dim=(2,3,6,7))
-    # cr_i=torch.stack([c_ij[i,j,(i+torch.arange(Lx//2)+1)%Lx,j] for i in range(Lx) for j in range(Ly)]).mean(dim=0)
-    # cr_j=torch.stack([c_ij[i,j,i,(j+torch.arange(Ly//2)+1)%Ly] for i in range(Lx) for j in range(Ly)]).mean(dim=0)
     return Cr_j
+
+def correlation_i2_length(C_m,replica,layer,Lx,Ly,i0,i1):
+    D=(replica,layer,Lx,Ly,2,2)
+    C_ij=C_m.reshape(D+D)[0,0,:,:,:,:,0,0,:,:,:,:].mean(dim=(2,3,6,7))  # trace out the sublattice and Majorana degree of freedom
+    Cr_j=torch.stack([C_ij[i0,j,i1,j] for j in range(Ly)]).mean()
+    return Cr_j.item()
+
 
 def fidelity(A,B):
     # https://doi.org/10.1063/1.5093326

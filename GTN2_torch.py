@@ -369,12 +369,12 @@ class GTN2_torch:
         return torch.tensor(A_idx_0,device=self.device),torch.tensor(B_idx_0,device=self.device),torch.tensor(C_idx_0,device=self.device)
     
     
-    def chern_number_quick(self,U1=True,shift=(0,0),selfaverage=False):
+    def chern_number_quick(self,radius_factor,U1=True,shift=(0,0),selfaverage=False,):
         # st=time.time()
         if selfaverage:
             return torch.stack([self.chern_number_quick(shift=(i,j)) for i in range(self.Lx) for j in range(self.Ly)]).mean()
         else:
-            A_idx,B_idx,C_idx = self.generate_tripartite_circle(shift=shift)
+            A_idx,B_idx,C_idx = self.generate_tripartite_circle(shift=shift,radius_factor=radius_factor)
             P=(torch.eye(self.C_m.shape[0],device=self.device,dtype=self.dtype_complex)-1j*self.C_m)/2
             P_AB=P[A_idx[:,None],B_idx[None,:]]
             P_BC=P[B_idx[:,None],C_idx[None,:]]

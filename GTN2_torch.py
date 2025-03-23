@@ -358,7 +358,7 @@ class GTN2_torch:
         ix_bar = torch.nonzero(~self.ix_bool,as_tuple=True)[0]
         return ix_bar
     
-    def generate_tripartite_circle(self,center=None,radius_factor=(2.6,2.6),shift=(0,0)):
+    def generate_tripartite_circle(self,radius_factor,center=None,shift=(0,0)):
         if center is None:
             center=[self.Lx/2,self.Ly/2]
         radius = [self.Lx/radius_factor[0],self.Ly/radius_factor[1]]
@@ -369,7 +369,7 @@ class GTN2_torch:
         return torch.tensor(A_idx_0,device=self.device),torch.tensor(B_idx_0,device=self.device),torch.tensor(C_idx_0,device=self.device)
     
     
-    def chern_number_quick(self,radius_factor,U1=True,shift=(0,0),selfaverage=False,):
+    def chern_number_quick(self,radius_factor=(2.6,2.6),U1=True,shift=(0,0),selfaverage=False,):
         # st=time.time()
         if selfaverage:
             return torch.stack([self.chern_number_quick(shift=(i,j)) for i in range(self.Lx) for j in range(self.Ly)]).mean()

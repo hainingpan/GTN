@@ -104,6 +104,7 @@ def correlation_length(C_m,replica,layer,Lx,Ly,):
     return Cr_i,Cr_j,cr_i,cr_j
 
 def correlation_i_length(C_m,replica,layer,Lx,Ly,i0):
+    """C_m is expected to be the element-wise square of the covariance matrix"""
     D=(replica,layer,Lx,Ly,2,2)
     C_ij=C_m.reshape(D+D)[0,0,:,:,:,:,0,0,:,:,:,:].mean(dim=(2,3,6,7))
     Cr_j=torch.stack([C_ij[i,j,i,(j+torch.arange(Ly//2)+1)%Ly] for i in [i0] for j in range(Ly)]).mean(dim=0)

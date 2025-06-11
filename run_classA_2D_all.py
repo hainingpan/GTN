@@ -78,7 +78,6 @@ def dummy(inputs):
     Lx,Ly, nshell,mu,sigma,seed=inputs
     gtn2_torch=GTN2_torch(Lx=Lx,Ly=Ly,history=False,random_init=False,random_U1=True,bcx=1,bcy=1,seed=seed,orbit=2,nshell=nshell,layer=2,replica=1,complex128=True)
     mu_list=[mu]
-    # tau_list=[(1,0),(0,1)]
     tau_list=[(1,1),(1,-1)]
     gtn2_torch.a_i={}
     gtn2_torch.b_i={}

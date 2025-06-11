@@ -6,8 +6,8 @@
 #SBATCH --ntasks=1
 #SBATCH --mem=8000
 #SBATCH --cpus-per-task=1
-#SBATCH --output=L20.out
-#SBATCH --error=L20.err
+#SBATCH --output=L30_truncate.out
+#SBATCH --error=L30_truncate.err
 
  
 cd $PWD
@@ -17,6 +17,9 @@ module purge
 module load singularity
 
 # srun singularity exec --nv /scratch/hp636/pytorch.sif python run_classA_2D_DW.py --L 20 --nshell 2 --tf 2 --seed0 1  --es 10 --truncate
-srun singularity exec --nv /scratch/hp636/pytorch.sif python run_classA_2D_DW.py --L $L --nshell $nshell --tf 2 --seed0 $seed  --es 10 --truncate
+# srun singularity exec --nv /scratch/hp636/pytorch.sif python run_classA_2D_DW.py --L $L --nshell $nshell --tf 2 --seed0 $seed  --es 10 --truncate
+# srun singularity exec --nv /scratch/hp636/pytorch.sif python run_classA_2D_DW.py --L $L --nshell $nshell --tf 10 --seed0 $seed  --es 1 --truncate
+# srun singularity exec --nv /scratch/hp636/pytorch.sif python run_classA_2D_DW.py --L 30 --nshell 2 --tf 2 --seed0 0  --es 1 --truncate
+srun singularity exec --nv /scratch/hp636/pytorch.sif python run_classA_2D_DW.py --L 30 --nshell 2 --tf 1 --seed0 1  --es 4 --truncate
 
 

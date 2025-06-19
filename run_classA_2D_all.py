@@ -144,12 +144,13 @@ if __name__ == '__main__':
     # eigvals=torch.linalg.eigvalsh(gtn2_dummy.C_m/1j)
     # eigvals_t=torch.linalg.eigvalsh(gtn2_dummy.C_m[:2*gtn2_dummy.L,:2*gtn2_dummy.L]/1j)
     # eigvals_b=torch.linalg.eigvalsh(gtn2_dummy.C_m[2*gtn2_dummy.L:,2*gtn2_dummy.L:]/1j)
-    eigvals = torch.linalg.eigvalsh(gtn2_dummy.get_C_f(gtn2_dummy, normal=True))
+    eigvals = torch.linalg.eigvalsh(gtn2_dummy.get_C_f(gtn2_dummy.C_m, normal=True))
     eigvals_t = torch.linalg.eigvalsh(gtn2_dummy.get_C_f(gtn2_dummy.C_m[:2*gtn2_dummy.L,:2*gtn2_dummy.L], normal=True))
     eigvals_b = torch.linalg.eigvalsh(gtn2_dummy.get_C_f(gtn2_dummy.C_m[2*gtn2_dummy.L:,2*gtn2_dummy.L:], normal=True))
     # gtn2_dummy.C_m[:2*gtn2_dummy.L,:2*gtn2_dummy.L] = purify(gtn2_dummy.C_m[:2*gtn2_dummy.L,:2*gtn2_dummy.L])
     # gtn2_dummy.C_m = purify(gtn2_dummy.C_m)
     # nu_ave=gtn2_dummy.chern_number_quick(selfaverage=True)
+
     # sq_ave_C_m = gtn2_dummy.C_m**2
     # sq_ave_Cr_i,sq_ave_Cr_j, sq_ave_cr_i,sq_ave_cr_j =correlation_length(sq_ave_C_m,replica=1,layer=2,Lx=args.Lx,Ly=args.Ly)
 

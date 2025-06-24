@@ -97,6 +97,11 @@ class GTN2_torch:
                 Gamma=O@Omega_diag@O.T
         else:
             Gamma=Omega_diag
+            # flip half of the bit to make it half-filling
+            i_list = torch.arange( 0,Gamma.shape[0],4 )
+            j_list = i_list+1
+            ij_list=torch.vstack([i_list,j_list]).T
+            self.set(ij_list=ij_list,n=[-1]*i_list.shape[0],Gamma=Omega_diag)
         return (Gamma-Gamma.T)/2
     
     def measure_feedback(self,ij,mu=None,tau=None,feedback=True,region=None):

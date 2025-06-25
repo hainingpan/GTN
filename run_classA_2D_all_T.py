@@ -54,7 +54,7 @@ def run(inputs):
     Lx,Ly, nshell,mu,sigma,tf,seed=inputs
     gtn2_torch=GTN2_torch(Lx=Lx,Ly=Ly,history=False,random_init=False,random_U1=True,bcx=1,bcy=1,seed=seed,orbit=2,nshell=nshell,layer=2,replica=1,complex128=True)
 
-    
+    print( torch.sum((1-torch.diag(gtn2_torch.C_m,1)[::2])/2) / gtn2_torch.L )
     gtn2_torch.a_i = gtn2_dummy.a_i
     gtn2_torch.b_i = gtn2_dummy.b_i
     gtn2_torch.A_i = gtn2_dummy.A_i

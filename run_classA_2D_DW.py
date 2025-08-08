@@ -80,7 +80,7 @@ def run(inputs):
     )
     EC_list=[]
     C_r_list=[]
-    # C_m_history[0] += gtn2_torch.C_m
+    C_m_history[0] += gtn2_torch.C_m
 
     EC_list.append( gtn2_torch.entanglement_contour(subregion_m,fermion_idx=False,Gamma=gtn2_torch.C_m).reshape((2,ilist.shape[0],jlist.shape[0],2,2)).sum(axis=(-1,-2))) 
     C_r_list.append( gtn2_torch.local_Chern_marker(gtn2_torch.C_m,))
@@ -93,9 +93,9 @@ def run(inputs):
         
         EC_list.append( gtn2_torch.entanglement_contour(subregion_m,fermion_idx=False,Gamma=gtn2_torch.C_m).reshape((2,ilist.shape[0],jlist.shape[0],2,2)).sum(axis=(-1,-2))) 
         C_r_list.append( gtn2_torch.local_Chern_marker(gtn2_torch.C_m,))
-        # C_m_history[i+1] += gtn2_torch.C_m
+        C_m_history[i+1] += gtn2_torch.C_m
     
-    return EC_list,C_r_list
+    return {'EC_list':EC_list,'C_r_list':C_r_list,'C_m_history':C_m_history}
 
 if __name__ == '__main__':
     parser=argparse.ArgumentParser()
@@ -115,29 +115,29 @@ if __name__ == '__main__':
     lower_list = []
     bulk_list = []
     gtn2_dummy=dummy(inputs[0])
-    # C_m_history = torch.zeros((args.tf*gtn2_dummy.Lx+1,4*gtn2_dummy.L,4*gtn2_dummy.L),dtype=torch.float64,device=gtn2_dummy.device)
+    C_m_history = torch.zeros((args.tf*gtn2_dummy.Lx+1,8*gtn2_dummy.L,8*gtn2_dummy.L),dtype=torch.float64,device=gtn2_dummy.device)
 
     for inp in inputs:
-        EC, C_r= run(inp)
-        EC_list.append(EC)
-        C_r_list.append(C_r)
+        rs= run(inp)
+        EC_list.append(rs['EC'])
+        C_r_list.append(rs['C_r'])
     
-    # for C_m in C_m_history:
-    #     C_m.div_(args.es)
+    for C_m in C_m_history:
+        C_m.div_(args.es)
     #     C_m_sq = C_m**2
     #     upper_list.append( correlation_i_length(C_m_sq,replica=1,layer=2,Lx=gtn2_dummy.Lx,Ly=gtn2_dummy.Ly,i0=gtn2_dummy.Lx//5))
     #     lower_list.append(correlation_i_length(C_m_sq,replica=1,layer=2,Lx=gtn2_dummy.Lx,Ly=gtn2_dummy.Ly,i0=gtn2_dummy.Lx//5*4-1))
     #     bulk_list.append( correlation_i_length(C_m_sq,replica=1,layer=2,Lx=gtn2_dummy.Lx,Ly=gtn2_dummy.Ly,i0=gtn2_dummy.Lx//2))
 
-    fn=f'class_A_2D_L{args.L}_nshell{args.nshell}_es{args.es}_seed{args.seed0}_tf{args.tf}{"_truncate" if args.truncate else ""}.pt'
-    # fn=f'class_A_2D_L{args.L}_nshell{args.nshell}_es{args.es}_seed{args.seed0}_tf{args.tf}{"_truncate" if args.truncate else ""}_raw_Cm.pt'
+    # fn=f'class_A_2D_L{args.L}_nshell{args.nshell}_es{args.es}_seed{args.seed0}_tf{args.tf}{"_truncate" if args.truncate else ""}.pt'
+    fn=f'class_A_2D_L{args.L}_nshell{args.nshell}_es{args.es}_seed{args.seed0}_tf{args.tf}{"_truncate" if args.truncate else ""}_raw_Cm.pt'
     torch.save({
     'EC':EC_list,
     'C_r':C_r_list,
     # 'upper':upper_list,
     # 'lower':lower_list,
     # 'bulk':bulk_list,
-    # 'C_m':C_m_history,
+    'C_m':C_m_history,
     'args':args},fn)
     print('Time elapsed: {:.4f}'.format(time.time()-st))
 

@@ -37,6 +37,7 @@ def run(inputs):
     Lx,Ly, nshell,mu,sigma,seed=inputs
     gtn2_torch=GTN2_torch(Lx=Lx,Ly=Ly,history=False,random_init=False,random_U1=True,bcx=1,bcy=1,seed=seed,orbit=2,nshell=nshell,layer=2,replica=1,complex128=True)
 
+    print( torch.sum((1-torch.diag(gtn2_torch.C_m,1)[::2])/2) / gtn2_torch.L )
     gtn2_torch.a_i = gtn2_dummy.a_i
     gtn2_torch.b_i = gtn2_dummy.b_i
     gtn2_torch.A_i = gtn2_dummy.A_i
@@ -140,9 +141,10 @@ if __name__ == '__main__':
         I2_list.append(rs['I2'])
 
     gtn2_dummy.C_m/=args.es
-    # eigvals=torch.linalg.eigvalsh(gtn2_dummy.C_m/1j)
-    # eigvals_t=torch.linalg.eigvalsh(gtn2_dummy.C_m[:2*gtn2_dummy.L,:2*gtn2_dummy.L]/1j)
-    # eigvals_b=torch.linalg.eigvalsh(gtn2_dummy.C_m[2*gtn2_dummy.L:,2*gtn2_dummy.L:]/1j)
+    eigvals=torch.linalg.eigvalsh(gtn2_dummy.C_m/1j)
+    eigvals_t=torch.linalg.eigvalsh(gtn2_dummy.C_m[:2*gtn2_dummy.L,:2*gtn2_dummy.L]/1j)
+    eigvals_b=torch.linalg.eigvalsh(gtn2_dummy.C_m[2*gtn2_dummy.L:,2*gtn2_dummy.L:]/1j)
+    nu_ave_unreg=gtn2_dummy.chern_number_quick(selfaverage=True)
     gtn2_dummy.C_m[:2*gtn2_dummy.L,:2*gtn2_dummy.L] = purify(gtn2_dummy.C_m[:2*gtn2_dummy.L,:2*gtn2_dummy.L])
     # gtn2_dummy.C_m = purify(gtn2_dummy.C_m)
     nu_ave=gtn2_dummy.chern_number_quick(selfaverage=True)
@@ -154,7 +156,8 @@ if __name__ == '__main__':
 
     
     # fn=f'class_A_2D_Lx{args.Lx}_Ly{args.Ly}_nshell{args.nshell}_mu{args.mu:.2f}_sigma{args.sigma:.3f}_es{args.es}_seed{args.seed0}_all.pt'
-    fn=f'class_A_2D_Lx{args.Lx}_Ly{args.Ly}_nshell{args.nshell}_mu{args.mu:.2f}_sigma{args.sigma:.3f}_es{args.es}_seed{args.seed0}_all_pub.pt'
+    # fn=f'class_A_2D_Lx{args.Lx}_Ly{args.Ly}_nshell{args.nshell}_mu{args.mu:.2f}_sigma{args.sigma:.3f}_es{args.es}_seed{args.seed0}_all_pub.pt'
+    fn=f'class_A_2D_Lx{args.Lx}_Ly{args.Ly}_nshell{args.nshell}_mu{args.mu:.2f}_sigma{args.sigma:.3f}_es{args.es}_seed{args.seed0}_all_pub_uni.pt'
     # fn=f'class_A_2D_Lx{args.Lx}_Ly{args.Ly}_nshell{args.nshell}_mu{args.mu:.2f}_sigma{args.sigma:.3f}_es{args.es}_seed{args.seed0}_all_I2.pt'
     # fn=f'class_A_2D_Lx{args.Lx}_Ly{args.Ly}_nshell{args.nshell}_mu{args.mu:.2f}_sigma{args.sigma:.3f}_es{args.es}_seed{args.seed0}_all_I2_8.pt'
     torch.save({
@@ -162,6 +165,7 @@ if __name__ == '__main__':
         # 'EE_j':torch.tensor(EE_j_list),
         'TMI':torch.tensor(TMI_list),
         'Chern':torch.tensor(nu_list),
+        'Chern_ave_unregularized': nu_ave_unreg,
         'Chern_ave':nu_ave,
         'sq_ave_Cr_i':sq_ave_Cr_i,
         'sq_ave_Cr_j':sq_ave_Cr_j,
@@ -171,9 +175,9 @@ if __name__ == '__main__':
         'ave_sq_Cr_j':ave_sq_Cr_j,
         'ave_sq_cr_i':ave_sq_cr_i,
         'ave_sq_cr_j':ave_sq_cr_j,
-        # 'eigvals':eigvals,
-        # 'eigvals_t':eigvals_t,
-        # 'eigvals_b':eigvals_b,
+        'eigvals':eigvals,
+        'eigvals_t':eigvals_t,
+        'eigvals_b':eigvals_b,
         # 'SA':torch.stack(SA_list),
         # 'OP':torch.tensor(OP_list),
         'I2':torch.tensor(I2_list),

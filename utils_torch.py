@@ -45,7 +45,7 @@ def P_contraction_torch(Gamma,Upsilon,ix,ix_bar,device,err,Gamma_like=None,reset
         st=time.time()
         print(f'Purification: {max_err}')
         Gamma=purify(Gamma)
-        print('Purification done in {:.4f} {}'.format(time.time()-st,max_error(Gamma)))
+        print('Purification done in {:.4f}s with new error{}'.format(time.time()-st,max_error(Gamma)))
         
 
 def max_error(Gamma):

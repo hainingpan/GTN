@@ -46,7 +46,7 @@ def randomize(gtn2_torch,measure=True):
 
 def dummy(inputs):
     L,nshell,tf,truncate,seed=inputs
-    gtn2_torch=GTN2_torch(Lx=L,Ly=L,history=False,random_init=False,random_U1=True,bcx=1,bcy=1,seed=seed,orbit=2,nshell=nshell,layer=2,replica=2,complex128=True)
+    gtn2_torch=GTN2_torch(Lx=L,Ly=L,history=False,random_init=False,random_U1=True,bcx=1,bcy=1,seed=seed,orbit=2,nshell=nshell,layer=2,replica=1,complex128=True)
     mu_list=[1,3]
     tau_list=[(1,1),(1,-1)]
     gtn2_torch.a_i={}
@@ -59,9 +59,9 @@ def dummy(inputs):
             gtn2_torch.A_i[mu,tau],gtn2_torch.B_i[mu,tau] = amplitude_fft_nshell_gpu(gtn2_torch.nshell,gtn2_torch.device,tau=tau,geometry='square',lower=False,mu=mu,nkx=L,nky=L)
     return gtn2_torch
 
-def run(inputs):
+def run(inputs,gtn2_dummy,C_m_history):
     L,nshell,tf,truncate,seed=inputs
-    gtn2_torch=GTN2_torch(Lx=L,Ly=L,history=False,random_init=False,random_U1=False,bcx=1,bcy=1,seed=seed,orbit=2,nshell=nshell,layer=2,replica=2,)
+    gtn2_torch=GTN2_torch(Lx=L,Ly=L,history=False,random_init=False,random_U1=False,bcx=1,bcy=1,seed=seed,orbit=2,nshell=nshell,layer=2,replica=1,)
     # mu_list=[1,3]
     # tau_list = [(1,1),(1,-1)]
 
@@ -78,12 +78,12 @@ def run(inputs):
         torch.from_numpy(gtn2_torch.linearize_idx_span(ilist = ilist,jlist=jlist,layer=0)).cuda(),
         torch.from_numpy(gtn2_torch.linearize_idx_span(ilist = ilist,jlist=jlist,layer=1)).cuda())
     )
-    EC_list=[]
-    C_r_list=[]
+    # EC_list=[]
+    # C_r_list=[]
     C_m_history[0] += gtn2_torch.C_m
 
-    EC_list.append( gtn2_torch.entanglement_contour(subregion_m,fermion_idx=False,Gamma=gtn2_torch.C_m).reshape((2,ilist.shape[0],jlist.shape[0],2,2)).sum(axis=(-1,-2))) 
-    C_r_list.append( gtn2_torch.local_Chern_marker(gtn2_torch.C_m,))
+    # EC_list.append( gtn2_torch.entanglement_contour(subregion_m,fermion_idx=False,Gamma=gtn2_torch.C_m).reshape((2,ilist.shape[0],jlist.shape[0],2,2)).sum(axis=(-1,-2))) 
+    # C_r_list.append( gtn2_torch.local_Chern_marker(gtn2_torch.C_m,))
 
 
     for i in tqdm(range(tf*gtn2_torch.Lx)):
@@ -91,11 +91,12 @@ def run(inputs):
         measure_feedback_layer_dw_line(gtn2_torch,overlap=True,geometry='strip',truncate=truncate)
         randomize(gtn2_torch,measure=True)
         
-        EC_list.append( gtn2_torch.entanglement_contour(subregion_m,fermion_idx=False,Gamma=gtn2_torch.C_m).reshape((2,ilist.shape[0],jlist.shape[0],2,2)).sum(axis=(-1,-2))) 
-        C_r_list.append( gtn2_torch.local_Chern_marker(gtn2_torch.C_m,))
+        # EC_list.append( gtn2_torch.entanglement_contour(subregion_m,fermion_idx=False,Gamma=gtn2_torch.C_m).reshape((2,ilist.shape[0],jlist.shape[0],2,2)).sum(axis=(-1,-2))) 
+        # C_r_list.append( gtn2_torch.local_Chern_marker(gtn2_torch.C_m,))
         C_m_history[i+1] += gtn2_torch.C_m
     
-    return {'EC_list':EC_list,'C_r_list':C_r_list,'C_m_history':C_m_history}
+    # return {'EC_list':EC_list,'C_r_list':C_r_list,'C_m_history':C_m_history}
+    return {'C_m_history':C_m_history}
 
 if __name__ == '__main__':
     parser=argparse.ArgumentParser()
@@ -109,18 +110,18 @@ if __name__ == '__main__':
 
     st=time.time()
     inputs=[(args.L, args.nshell, args.tf, args.truncate,seed+args.seed0) for seed in range(args.es)]
-    EC_list = []
-    C_r_list = []
+    # EC_list = []
+    # C_r_list = []
     upper_list = []
     lower_list = []
     bulk_list = []
     gtn2_dummy=dummy(inputs[0])
-    C_m_history = torch.zeros((args.tf*gtn2_dummy.Lx+1,8*gtn2_dummy.L,8*gtn2_dummy.L),dtype=torch.float64,device=gtn2_dummy.device)
+    C_m_history = torch.zeros((args.tf*gtn2_dummy.Lx+1,*gtn2_dummy.C_m.shape),dtype=torch.float64,device=gtn2_dummy.device)
 
     for inp in inputs:
         rs= run(inp)
-        EC_list.append(rs['EC'])
-        C_r_list.append(rs['C_r'])
+        # EC_list.append(rs['EC'])
+        # C_r_list.append(rs['C_r'])
     
     for C_m in C_m_history:
         C_m.div_(args.es)
@@ -132,8 +133,8 @@ if __name__ == '__main__':
     # fn=f'class_A_2D_L{args.L}_nshell{args.nshell}_es{args.es}_seed{args.seed0}_tf{args.tf}{"_truncate" if args.truncate else ""}.pt'
     fn=f'class_A_2D_L{args.L}_nshell{args.nshell}_es{args.es}_seed{args.seed0}_tf{args.tf}{"_truncate" if args.truncate else ""}_raw_Cm.pt'
     torch.save({
-    'EC':EC_list,
-    'C_r':C_r_list,
+    # 'EC':EC_list,
+    # 'C_r':C_r_list,
     # 'upper':upper_list,
     # 'lower':lower_list,
     # 'bulk':bulk_list,

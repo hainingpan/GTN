@@ -59,7 +59,7 @@ def dummy(inputs):
             gtn2_torch.A_i[mu,tau],gtn2_torch.B_i[mu,tau] = amplitude_fft_nshell_gpu(gtn2_torch.nshell,gtn2_torch.device,tau=tau,geometry='square',lower=False,mu=mu,nkx=L,nky=L)
     return gtn2_torch
 
-def run(inputs,gtn2_dummy,C_m_history):
+def run(inputs):
     L,nshell,tf,truncate,seed=inputs
     gtn2_torch=GTN2_torch(Lx=L,Ly=L,history=False,random_init=False,random_U1=False,bcx=1,bcy=1,seed=seed,orbit=2,nshell=nshell,layer=2,replica=1,)
     # mu_list=[1,3]

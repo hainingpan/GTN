@@ -46,7 +46,7 @@ def randomize(gtn2_torch,measure=True):
 
 def dummy(inputs):
     L,nshell,tf,truncate,seed=inputs
-    gtn2_torch=GTN2_torch(Lx=L,Ly=L,history=False,random_init=False,random_U1=True,bcx=1,bcy=1,seed=seed,orbit=2,nshell=nshell,layer=2,replica=1,complex128=True)
+    gtn2_torch=GTN2_torch(Lx=L,Ly=L,history=False,random_init=False,random_U1=True,bcx=1,bcy=1,seed=seed,orbit=2,nshell=nshell,layer=2,replica=1,complex128=True,gpu=False)
     mu_list=[1,3]
     tau_list=[(1,1),(1,-1)]
     gtn2_torch.a_i={}
@@ -61,7 +61,7 @@ def dummy(inputs):
 
 def run(inputs):
     L,nshell,tf,truncate,seed=inputs
-    gtn2_torch=GTN2_torch(Lx=L,Ly=L,history=False,random_init=False,random_U1=False,bcx=1,bcy=1,seed=seed,orbit=2,nshell=nshell,layer=2,replica=1,)
+    gtn2_torch=GTN2_torch(Lx=L,Ly=L,history=False,random_init=False,random_U1=False,bcx=1,bcy=1,seed=seed,orbit=2,nshell=nshell,layer=2,replica=1,gpu=False)
     # mu_list=[1,3]
     # tau_list = [(1,1),(1,-1)]
 

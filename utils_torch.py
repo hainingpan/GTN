@@ -145,3 +145,247 @@ def sqrt(A):
     val_sqrt = torch.sqrt(val+0j)
     vec=vec+0j
     return vec@torch.diag(val_sqrt)@vec.conj().T
+
+def get_C_f(Gamma, normal=True, device=None):
+    """
+    Convert covariance matrix in Majorana basis to correlation matrix in fermionic basis.
+
+    Parameters
+    ----------
+    Gamma : torch.Tensor
+        Covariance matrix in Majorana basis, shape (..., 2L, 2L)
+        Supports arbitrary batch dimensions. Should be real-valued.
+    normal : bool, optional
+        If True, return only the normal part C_f[..., ::2, ::2], shape (..., L, L)
+        If False, return the full correlation matrix, shape (..., 2L, 2L)
+        Default is True
+    device : torch.device, optional
+        Device for computation. If None, uses Gamma.device
+
+    Returns
+    -------
+    C_f : torch.Tensor
+        Correlation matrix <c_i^dag c_j> in fermionic basis
+        Shape (..., L, L) if normal=True, (..., 2L, 2L) if normal=False
+
+    Notes
+    -----
+    The transformation uses S = kron(I_L, S0) where S0 = [[1,1j],[1,-1j]]/2
+    Formula: C_f = S @ (I - i*Gamma) @ S^dag
+    Works on batched inputs through PyTorch broadcasting.
+    The complex dtype is automatically inferred from Gamma's dtype (float32→complex64, float64→complex128).
+
+    Examples
+    --------
+    >>> Gamma = torch.randn(10, 20, 20)  # batch of 10 matrices, L=10
+    >>> C_f = get_C_f(Gamma)  # Returns shape (10, 10, 10)
+    """
+    if device is None:
+        device = Gamma.device
+
+    # Infer complex dtype from input dtype
+    if Gamma.dtype == torch.float32:
+        dtype_complex = torch.complex64
+    elif Gamma.dtype == torch.float64:
+        dtype_complex = torch.complex128
+    else:
+        dtype_complex = torch.complex128  # default fallback
+
+    L = Gamma.shape[-1] // 2
+    S0 = torch.tensor([[1, 1j], [1, -1j]], device=device, dtype=dtype_complex) / 2
+    S = torch.kron(torch.eye(L, device=device, dtype=dtype_complex), S0)
+    C_f = S @ (torch.eye(2*L, device=device, dtype=dtype_complex) - 1j * Gamma) @ S.conj().T
+
+    if normal:
+        return C_f[..., ::2, ::2]
+    else:
+        return C_f
+
+
+def get_C_m(C_f, normal=True, device=None, dtype_complex=None):
+    """
+    Convert correlation matrix in fermionic basis to covariance matrix in Majorana basis.
+
+    This is the inverse transformation of get_C_f().
+
+    Parameters
+    ----------
+    C_f : torch.Tensor
+        Correlation matrix <c_i^dag c_j> in fermionic basis
+        If normal=True, expected shape is (..., L, L)
+        If normal=False, not yet implemented
+        Supports arbitrary batch dimensions. Should be complex-valued.
+    normal : bool, optional
+        If True, input C_f is the normal part only (shape (..., L, L))
+        If False, not yet implemented
+        Default is True
+    device : torch.device, optional
+        Device for computation. If None, uses C_f.device
+    dtype_complex : torch.dtype, optional
+        Complex dtype to use. If None, uses C_f.dtype
+
+    Returns
+    -------
+    C_m : torch.Tensor
+        Covariance matrix in Majorana basis (imaginary part only), shape (..., 2L, 2L)
+        Real-valued tensor with same precision as input.
+
+    Notes
+    -----
+    The transformation constructs a projector P from C_f and uses:
+    C_m = I - 2*P where P is derived from the fermionic correlation matrix
+    Works on batched inputs through PyTorch broadcasting.
+    The dtype is automatically inferred from C_f's dtype if not specified.
+
+    Raises
+    ------
+    NotImplementedError
+        If normal=False
+    AssertionError
+        If the resulting C_m has significant real part (>1e-10)
+
+    Examples
+    --------
+    >>> C_f = torch.randn(10, 5, 5, dtype=torch.complex64)  # batch of 10 matrices, L=5
+    >>> C_m = get_C_m(C_f)  # Returns shape (10, 10, 10), dtype float32
+    """
+    if device is None:
+        device = C_f.device
+
+    if dtype_complex is None:
+        dtype_complex = C_f.dtype
+
+    if normal:
+        # Get batch shape and L
+        batch_shape = C_f.shape[:-2]
+        L = C_f.shape[-1]
+
+        S0 = torch.tensor([[1, 1j], [1, -1j]], device=device, dtype=dtype_complex) / 2
+        S = torch.kron(torch.eye(L, device=device, dtype=dtype_complex), S0)
+
+        # Construct full correlation matrix with proper batch dimensions
+        C_f_ = torch.eye(L, dtype=dtype_complex, device=device) - C_f.transpose(-2, -1)
+        C_ = torch.zeros(batch_shape + (L, 2, L, 2), dtype=dtype_complex, device=device)
+        C_[..., :, 0, :, 0] = C_f
+        C_[..., :, 1, :, 1] = C_f_
+        C_ = C_.reshape(batch_shape + (2*L, 2*L))
+
+        # Compute covariance matrix
+        P_ = S.conj().T @ C_ @ S * 2
+
+        # Determine appropriate real dtype for identity matrix
+        if dtype_complex == torch.complex64:
+            dtype_real = torch.float32
+        else:
+            dtype_real = torch.float64
+
+        C_m = torch.eye(2*L, device=device, dtype=dtype_real) - P_ * 2
+
+        # Check that result is purely imaginary
+        max_real = C_m.real.abs().max()
+        assert max_real < 1e-10, f'largest real part is {max_real}'
+        return C_m.imag
+    else:
+        raise NotImplementedError("The 'normal=False' case is not yet implemented.")
+
+
+def compute_current(Gamma, replica, layer, Lx, Ly, n_orbitals=2, direction='y', which_replica=0, which_layer=0):
+    """
+    Compute the current between neighboring sites from the Majorana covariance matrix.
+
+    J_{x,y,y+1} = (1/2) * sum_{μ,μ'} Im[G_{(x,y,μ), (x,y+1,μ')}]
+    where G = <c^†_i c_j> is the correlation matrix in fermionic basis.
+
+    Parameters
+    ----------
+    Gamma : torch.Tensor
+        Covariance matrix in Majorana basis, shape (2L, 2L) where L = replica*layer*Lx*Ly*n_orbitals
+    replica, layer, Lx, Ly : int
+        Dimensions of the system
+    n_orbitals : int, optional
+        Number of orbitals per site (default: 2)
+    direction : str, optional
+        'y' for vertical or 'x' for horizontal current (default: 'y')
+    which_replica, which_layer : int, optional
+        Indices to select specific replica/layer (default: 0, 0)
+
+    Returns
+    -------
+    J : torch.Tensor, shape (Lx, Ly)
+        Current map where J[x,y] is the current from (x,y) to its neighbor
+    """
+    C_f = get_C_f(Gamma, normal=True)
+
+    D = (replica, layer, Lx, Ly, n_orbitals)
+    C_f_reshaped = C_f.reshape(D + D)
+
+    G = C_f_reshaped[which_replica, which_layer, :, :, :, which_replica, which_layer, :, :, :]
+
+    if direction == 'y':
+        x_idx = torch.arange(Lx)
+        y_idx = torch.arange(Ly)
+        y_next_idx = (y_idx + 1) % Ly
+        G_neighbors = G[x_idx[:, None], y_idx[None, :], :, x_idx[:, None], y_next_idx[None, :], :]
+        J = G_neighbors.imag.sum(dim=(2, 3)) / 2.0
+
+    elif direction == 'x':
+        x_idx = torch.arange(Lx)
+        y_idx = torch.arange(Ly)
+        x_next_idx = (x_idx + 1) % Lx
+        G_neighbors = G[x_idx[:, None], y_idx[None, :], :, x_next_idx[:, None], y_idx[None, :], :]
+        J = G_neighbors.imag.sum(dim=(2, 3)) / 2.0
+
+    else:
+        raise ValueError(f"direction must be 'x' or 'y', got '{direction}'")
+
+    return J
+
+
+def check_current_conservation(Gamma, replica, layer, Lx, Ly, n_orbitals=2, which_replica=0, which_layer=0):
+    """
+    Check current conservation (continuity equation) at each site.
+
+    For a stationary, number-conserving ground state, the local divergence
+    δ[x,y] = ∇·J = (J_x[x,y] - J_x[x-1,y]) + (J_y[x,y] - J_y[x,y-1])
+    should be ≈ 0 at every site.
+
+    Parameters
+    ----------
+    Gamma : torch.Tensor
+        Covariance matrix in Majorana basis
+    replica, layer, Lx, Ly : int
+        Dimensions of the system
+    n_orbitals : int, optional
+        Number of orbitals per site (default: 2)
+    which_replica, which_layer : int, optional
+        Indices to select specific replica/layer (default: 0, 0)
+
+    Returns
+    -------
+    divergence : torch.Tensor, shape (Lx, Ly)
+        Local divergence at each site. Should be ≈ 0 for bulk sites.
+    max_div : float
+        Maximum absolute divergence
+    mean_div : float
+        Mean absolute divergence
+    """
+    # Compute currents in both directions
+    J_x = compute_current(Gamma, replica, layer, Lx, Ly, n_orbitals, direction='x',
+                          which_replica=which_replica, which_layer=which_layer)
+    J_y = compute_current(Gamma, replica, layer, Lx, Ly, n_orbitals, direction='y',
+                          which_replica=which_replica, which_layer=which_layer)
+
+    # Compute divergence: ∇·J = ∂J_x/∂x + ∂J_y/∂y
+    # J_x[x,y] is current OUT of (x,y) in +x direction
+    # J_x[x-1,y] is current INTO (x,y) from -x direction
+    # Net outflow in x: J_x[x,y] - J_x[x-1,y]
+
+    div_x = J_x - torch.roll(J_x, shifts=1, dims=0)  # J_x[x,y] - J_x[x-1,y]
+    div_y = J_y - torch.roll(J_y, shifts=1, dims=1)  # J_y[x,y] - J_y[x,y-1]
+
+    divergence = div_x + div_y
+
+    max_div = divergence.abs().max().item()
+    mean_div = divergence.abs().mean().item()
+
+    return divergence, max_div, mean_div

@@ -341,6 +341,61 @@ def compute_current(Gamma, replica, layer, Lx, Ly, n_orbitals=2, direction='y', 
     return J
 
 
+def compute_current_orbital_weighted(Gamma, replica, layer, Lx, Ly, direction='y', which_replica=0, which_layer=0):
+    """
+    Compute orbital-weighted current using specific orbital transition weights.
+
+    J_x(r+ŷ/2) = Im[-1/2 a†_r a_{r+x̂} + 1/2 b†_r b_{r+x̂} + 1/2 a†_r b_{r+x̂}]
+    J_y(r+x̂/2) = Im[-1/2 a†_r a_{r+ŷ} + 1/2 b†_r b_{r+ŷ} - 1/2 a†_r b_{r+ŷ}]
+
+    Parameters
+    ----------
+    Gamma : torch.Tensor
+        Covariance matrix in Majorana basis
+    replica, layer, Lx, Ly : int
+        Dimensions of the system
+    direction : str, optional
+        'y' for vertical or 'x' for horizontal current (default: 'y')
+    which_replica, which_layer : int, optional
+        Indices to select specific replica/layer (default: 0, 0)
+
+    Returns
+    -------
+    J : torch.Tensor, shape (Lx, Ly)
+        Orbital-weighted current map
+    """
+    C_f = get_C_f(Gamma, normal=True)
+
+    D = (replica, layer, Lx, Ly, 2)  # n_orbitals = 2 hardcoded
+    C_f_reshaped = C_f.reshape(D + D)
+
+    G = C_f_reshaped[which_replica, which_layer, :, :, :, which_replica, which_layer, :, :, :]
+
+    x_idx = torch.arange(Lx)
+    y_idx = torch.arange(Ly)
+
+    if direction == 'y':
+        y_next_idx = (y_idx + 1) % Ly
+        # Extract orbital-specific transitions: (x,y,orbital) -> (x,y+1,orbital')
+        G_aa = G[x_idx[:, None], y_idx[None, :], 0, x_idx[:, None], y_next_idx[None, :], 0]
+        G_bb = G[x_idx[:, None], y_idx[None, :], 1, x_idx[:, None], y_next_idx[None, :], 1]
+        G_ab = G[x_idx[:, None], y_idx[None, :], 0, x_idx[:, None], y_next_idx[None, :], 1]
+        J = (-0.5 * G_aa + 0.5 * G_bb - 0.5 * G_ab).imag
+
+    elif direction == 'x':
+        x_next_idx = (x_idx + 1) % Lx
+        # Extract orbital-specific transitions: (x,y,orbital) -> (x+1,y,orbital')
+        G_aa = G[x_idx[:, None], y_idx[None, :], 0, x_next_idx[:, None], y_idx[None, :], 0]
+        G_bb = G[x_idx[:, None], y_idx[None, :], 1, x_next_idx[:, None], y_idx[None, :], 1]
+        G_ab = G[x_idx[:, None], y_idx[None, :], 0, x_next_idx[:, None], y_idx[None, :], 1]
+        J = (-0.5 * G_aa + 0.5 * G_bb + 0.5 * G_ab).imag
+
+    else:
+        raise ValueError(f"direction must be 'x' or 'y', got '{direction}'")
+
+    return J
+
+
 def check_current_conservation(Gamma, replica, layer, Lx, Ly, n_orbitals=2, which_replica=0, which_layer=0):
     """
     Check current conservation (continuity equation) at each site.

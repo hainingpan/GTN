@@ -388,7 +388,7 @@ def compute_current_orbital_weighted(Gamma, replica, layer, Lx, Ly, direction='y
         G_aa = G[x_idx[:, None], y_idx[None, :], 0, x_next_idx[:, None], y_idx[None, :], 0]
         G_bb = G[x_idx[:, None], y_idx[None, :], 1, x_next_idx[:, None], y_idx[None, :], 1]
         G_ab = G[x_idx[:, None], y_idx[None, :], 0, x_next_idx[:, None], y_idx[None, :], 1]
-        J = (-0.5 * G_aa + 0.5 * G_bb + 0.5 * G_ab).imag
+        J = (-0.5 * G_aa + 0.5 * G_bb + 0.5 *1j * G_ab).imag
 
     else:
         raise ValueError(f"direction must be 'x' or 'y', got '{direction}'")

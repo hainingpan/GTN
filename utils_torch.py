@@ -289,7 +289,7 @@ def get_C_m(C_f, normal=True, device=None, dtype_complex=None):
         raise NotImplementedError("The 'normal=False' case is not yet implemented.")
 
 
-def compute_current(Gamma, replica, layer, Lx, Ly, n_orbitals=2, direction='y', which_replica=0, which_layer=0):
+def compute_current(Gamma, replica, layer, Lx, Ly, n_orbitals=2, direction='y', which_replica=0, which_layer=0,phase='real'):
     """
     Compute the current between neighboring sites from the Majorana covariance matrix.
 
@@ -326,14 +326,14 @@ def compute_current(Gamma, replica, layer, Lx, Ly, n_orbitals=2, direction='y', 
         y_idx = torch.arange(Ly)
         y_next_idx = (y_idx + 1) % Ly
         G_neighbors = G[x_idx[:, None], y_idx[None, :], :, x_idx[:, None], y_next_idx[None, :], :]
-        J = G_neighbors.imag.sum(dim=(2, 3)) / 2.0
+        J = getattr(G_neighbors,phase).sum(dim=(2, 3)) / 2.0
 
     elif direction == 'x':
         x_idx = torch.arange(Lx)
         y_idx = torch.arange(Ly)
         x_next_idx = (x_idx + 1) % Lx
         G_neighbors = G[x_idx[:, None], y_idx[None, :], :, x_next_idx[:, None], y_idx[None, :], :]
-        J = G_neighbors.imag.sum(dim=(2, 3)) / 2.0
+        J = getattr(G_neighbors,phase).sum(dim=(2, 3)) / 2.0
 
     else:
         raise ValueError(f"direction must be 'x' or 'y', got '{direction}'")

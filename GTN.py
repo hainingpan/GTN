@@ -4,7 +4,7 @@ import numpy.linalg as nla
 import scipy.linalg as la
 from scipy.sparse import bsr_array
 from copy import copy
-from itertools import permutations
+from itertools import permutations, combinations
 
 class GTN:
     def __init__(self,L,history=True,seed=None,op=False,random_init=False,c=[1,1,1],pbc=True,trijunction=False):
@@ -254,8 +254,6 @@ class GTN:
         n_list=get_Born_tri_op(p=0,Gamma=np.array([0]),rng=self.rng,alpha=1)
         self.measure(n_list[0],ix=legs)
         return n_list[0][0]
-
-
 
     
     # def state_transfer(self,ix,source=None,target=None):
@@ -783,7 +781,8 @@ class GTN:
             return np.int_(sorted(np.concatenate([n*subregion+i for i in range(0,n,k)])))
         else:
             return np.int_(sorted(np.concatenate([n*subregion+i for i in range(n)])))
-        
+
+            
 def get_random_tri_op(p,num,rng=None):
     rng=np.random.default_rng(rng)
     sign=rng.random(size=num)
@@ -1409,6 +1408,113 @@ def c2g(u):
     X[1::2,::2]=u.imag
     return X
 
+def _majorana_perm_phase(n_modes):
+    dim=1<<n_modes
+    basis=np.arange(dim,dtype=np.int64)
+    try:
+        bitcount=np.array([int(x).bit_count() for x in basis],dtype=np.int8)
+    except AttributeError:
+        bitcount=np.array([bin(int(x)).count("1") for x in basis],dtype=np.int8)
+    perms=[]
+    phases=[]
+    for j in range(n_modes):
+        flip=basis^(1<<j)
+        left_mask=(1<<j)-1
+        parity=bitcount[basis & left_mask] & 1
+        sign=1-2*parity
+        n_j=(basis>>j) & 1
+        perms.append(flip)
+        phases.append(sign.astype(np.complex128))
+        perms.append(flip)
+        phases.append(sign.astype(np.complex128)*(1-2*n_j)*1j)
+    return perms,phases
+
+def density_matrix(Gamma=None,tol=1e-12,order="msb"):
+    """Return the density matrix in computational basis from a covariance matrix.
+    order: "msb" (site 0 is most significant) or "lsb" (site 0 is least significant).
+    Uses the same Majorana convention as get_C_f; scales exponentially with L.
+    """
+    if order is None:
+        order="msb"
+    order=str(order).lower()
+    if order not in ("msb","lsb"):
+        raise ValueError("order must be 'msb' or 'lsb'")
+    Gamma=np.asarray(Gamma)
+    n_majorana=Gamma.shape[0]
+    if Gamma.ndim!=2 or Gamma.shape[1]!=n_majorana:
+        raise ValueError("Gamma must be a square matrix")
+    if n_majorana%2!=0:
+        raise ValueError("C_m must have even dimension")
+    n_modes=n_majorana//2
+    dim=1<<n_modes
+    perms, phases=_majorana_perm_phase(n_modes)
+    rho=np.zeros((dim,dim),dtype=complex)
+    basis=np.arange(dim)
+    for size in range(0,2*n_modes+1,2):
+        for subset in combinations(range(2*n_modes),size):
+            if size==0:
+                rho+=np.eye(dim,dtype=complex)
+                continue
+            idx=np.array(subset,dtype=int)
+            sub=Gamma[np.ix_(idx,idx)]
+            coeff=((-1j)**(size//2))*_pfaffian(sub,tol=tol)
+            if abs(coeff)<tol:
+                continue
+            perm=basis
+            phase=np.ones(dim,dtype=complex)
+            # Apply operators right-to-left to respect gamma product ordering.
+            for i in idx[::-1]:
+                old_perm=perm
+                perm=perms[i][old_perm]
+                phase=phase*phases[i][old_perm]
+            rho[perm,basis]+=coeff*phase
+    rho/=2**n_modes
+    rho=(rho+rho.conj().T)/2
+    if order=="msb":
+        perm=_bit_reverse_perm(n_modes)
+        rho=rho[np.ix_(perm,perm)]
+    return rho
+    
+def _bit_reverse_perm(n_modes):
+    dim=1<<n_modes
+    perm=np.zeros(dim,dtype=np.int64)
+    for i in range(dim):
+        x=i
+        r=0
+        for _ in range(n_modes):
+            r=(r<<1)|(x&1)
+            x>>=1
+        perm[i]=r
+    return perm
+
+def _pfaffian(A,tol=1e-12):
+    A=np.array(A,dtype=complex,copy=True)
+    n=A.shape[0]
+    if n==0:
+        return 1.0+0j
+    if n%2==1:
+        return 0.0+0j
+    pf=1.0+0j
+    for k in range(0,n-1,2):
+        pivot=None
+        for i in range(k+1,n):
+            if abs(A[k,i])>tol:
+                pivot=i
+                break
+        if pivot is None:
+            return 0.0+0j
+        if pivot!=k+1:
+            A[[k+1,pivot],:]=A[[pivot,k+1],:]
+            A[:,[k+1,pivot]]=A[:,[pivot,k+1]]
+            pf*=-1
+        val=A[k,k+1]
+        pf*=val
+        if k+2<n:
+            a=A[k,k+2:]
+            b=A[k+1,k+2:]
+            A[k+2:,k+2:]-=(np.outer(a,b)-np.outer(b,a))/val
+    return pf
+
 def get_C_f(Gamma):
     """ get the correlation matrix defined as <c_i^dag c_j>"""
     L=Gamma.shape[0]//2
@@ -1423,4 +1529,3 @@ def get_Born(Gamma,u):
     n = u@C_f@u.conj()
     assert np.abs(n.imag)<1e-10, f'number density is not real {n.imag.max()}'
     return n.real
-

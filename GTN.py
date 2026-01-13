@@ -1529,3 +1529,11 @@ def get_Born(Gamma,u):
     n = u@C_f@u.conj()
     assert np.abs(n.imag)<1e-10, f'number density is not real {n.imag.max()}'
     return n.real
+
+def extract_n(rho):
+    "rho = I/2 + n1*sigma_x + n2*sigma_y + n3*sigma_z"
+    rho_bit = rho[1:3,1:3]
+    n1 = rho_bit[1,0].real
+    n2 = rho_bit[1,0].imag
+    n3 = (rho_bit[0,0]-rho_bit[1,1])/2
+    return np.array([2*n1,2*n2,2*n3])
